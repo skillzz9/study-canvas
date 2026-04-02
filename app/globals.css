@@ -4,5 +4,13 @@
   --color-panda-white: #fefaf0;
   --color-lofi-charcoal: #3d3d3d;
   --color-cozy-beige: #f5e6d3;
-  --color-study-pink: #FFB7C5;
+}
+
+/* Custom Sketch Utilities */
+@utility sketch-bw {
+  filter: grayscale(1) contrast(500%) brightness(120%);
+}
+
+@utility sketch-color {
+  filter: sepia(0.2) contrast(150%) saturate(80%);
 }
