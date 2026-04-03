@@ -7,13 +7,15 @@ interface AvatarProps {
   shuffledIndices: number[];
   gridSize: number;
   onBlockComplete: () => void;
+  userName: string;
 }
 
 export default function Avatar({ 
   targetBlocksCount, 
   shuffledIndices, 
   gridSize, 
-  onBlockComplete 
+  onBlockComplete,
+  userName,
 }: AvatarProps) {
   const [completedLocally, setCompletedLocally] = useState(0);
   const [isBusy, setIsBusy] = useState(false);
@@ -99,6 +101,17 @@ export default function Avatar({
         transitionTimingFunction: "ease-in-out"
       }}
     >
+        <div 
+      className="mb-1"
+      style={{ 
+        // COUNTER-FLIP: this flips the text back so it's readable
+        transform: `scaleX(${facingLeft ? -1 : 1})` 
+      }}
+    >
+      <h1 className="text-[10px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap bg-white/80 px-1 rounded">
+        {userName}
+      </h1>
+    </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img 
         src="/avatar.webp" 
@@ -107,6 +120,7 @@ export default function Avatar({
           isBusy && pos.y < 400 ? "animate-bounce" : ""
         }`} 
       />
-    </div>
+      </div>
+
   );
 }

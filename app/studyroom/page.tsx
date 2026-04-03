@@ -80,6 +80,7 @@ export default function StudyRoom() {
 
         {/* 3. THE AVATAR (Now child of the master container) */}
         <Avatar 
+        userName="Hugo"
           targetBlocksCount={targetBlocksCount}
           shuffledIndices={shuffledIndices}
           gridSize={GRID_SIZE}
