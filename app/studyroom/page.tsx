@@ -10,7 +10,14 @@ export default function StudyRoom() {
   const router = useRouter();
   const [studyImage, setStudyImage] = useState<string | null>(null);
   const [totalMinutes, setTotalMinutes] = useState<number>(360);
-  const [minutes, setMinutes] = useState(0);
+  
+  // Replaced the manual 'minutes' state with a stopwatch
+  const [secondsElapsed, setSecondsElapsed] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  
+  // We calculate minutes dynamically now so your exact math below stays unbroken
+  const minutes = secondsElapsed / 60;
+  
   const [revealedCount, setRevealedCount] = useState(0);
 
   const GRID_SIZE = 4;
@@ -35,8 +42,20 @@ export default function StudyRoom() {
     }
   }, [router]);
 
+  // NEW: The Stopwatch Logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isActive && minutes < totalMinutes) {
+      interval = setInterval(() => {
+        setSecondsElapsed((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isActive, minutes, totalMinutes]);
+
   if (!studyImage) return null;
 
+  // EVERYTHING BELOW HERE IS YOUR EXACT MATH
   const targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_BLOCKS);
   const MINUTES_PER_LEVEL = totalMinutes / 6;
   const safeMinutes = Math.min(Math.max(minutes, 0), totalMinutes);
@@ -66,21 +85,24 @@ export default function StudyRoom() {
           </div>
         </div>
 
-        {/* 2. THE SLIDER BOX */}
-        <div className="w-[400px] bg-white p-8 rounded-3xl border-4 border-neutral-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-20">
-          <input 
-            type="range" min="0" max={totalMinutes} step="1" 
-            value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}
-            className="w-full cursor-pointer accent-blue-600"
-          />
-          <div className="mt-4 text-center font-bold text-neutral-800 uppercase tracking-widest font-mono">
-            {Math.floor(minutes / 60)}h {minutes % 60}m
+        {/* 2. THE STOPWATCH BOX (Replaced the slider box) */}
+        <div className="w-[400px] bg-white p-8 rounded-3xl border-4 border-neutral-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-20 flex flex-col items-center gap-4">
+          <div className="text-center font-bold text-neutral-800 uppercase tracking-widest font-mono text-4xl mb-2">
+            {String(Math.floor(secondsElapsed / 3600)).padStart(2, '0')}:
+            {String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0')}:
+            {String(secondsElapsed % 60).padStart(2, '0')}
           </div>
+          <button 
+            onClick={() => setIsActive(!isActive)}
+            className="w-full py-4 border-4 border-neutral-800 font-bold uppercase transition-all bg-blue-500 text-white hover:bg-blue-600"
+          >
+            {isActive ? "Pause" : "Start"}
+          </button>
         </div>
 
         {/* 3. THE AVATAR (Now child of the master container) */}
         <Avatar 
-        userName="Hugo"
+          userName="Hugo"
           targetBlocksCount={targetBlocksCount}
           shuffledIndices={shuffledIndices}
           gridSize={GRID_SIZE}
