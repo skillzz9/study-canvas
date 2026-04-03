@@ -14,14 +14,7 @@ export default function Level({ imageSrc, level }: LevelProps) {
   switch (level) {
     case 1:
       return (
-        <div className="relative w-full h-full">
-          <Image
-            src={imageSrc}
-            alt="L1"
-            fill
-            unoptimized
-            className="object-cover grayscale invert blur-[25px] contrast-[8000%] mix-blend-color-dodge"
-          />
+        <div className="relative w-full h-full bg-white">
         </div>
       );
 

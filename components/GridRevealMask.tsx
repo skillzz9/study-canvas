@@ -3,56 +3,65 @@
 import React, { useMemo } from "react";
 
 interface GridRevealMaskProps {
-  progress: number; // 0 to 100
+  progress: number; // 0 to 100 percentage
+  children: React.ReactNode;
+  gridSize?: number; // E.g., 4 for a 4x4 grid
 }
 
-export default function GridRevealMask({ progress }: GridRevealMaskProps) {
-  const GRID_SIZE = 20; // 20x20 grid = 400 squares
-  const TOTAL_BLOCKS = GRID_SIZE * GRID_SIZE;
+export default function GridRevealMask({ progress, children, gridSize = 4 }: GridRevealMaskProps) {
+  const TOTAL_BLOCKS = gridSize * gridSize;
 
-  // 1. Generate and Shuffle the Grid ONCE
-  // useMemo ensures we only shuffle the deck once when the component first loads.
-  // If we didn't use this, the squares would randomize every single frame!
+  // Shuffle the 16 indices once on mount
   const shuffledIndices = useMemo(() => {
     const indices = Array.from({ length: TOTAL_BLOCKS }, (_, i) => i);
-    
-    // Fisher-Yates Shuffle Algorithm
     for (let i = indices.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [indices[i], indices[j]] = [indices[j], indices[i]];
     }
     return indices;
-  }, []);
+  }, [TOTAL_BLOCKS]);
 
-  // 2. Calculate how many blocks should be invisible right now
+  // If progress is 0, completely hide this layer
+  if (progress <= 0) return <div className="hidden" />;
+  
+  // If progress is 100%, show everything (no mask needed)
+  if (progress >= 100) return <div className="w-full h-full absolute inset-0 z-10">{children}</div>;
+
+  // Calculate how many of the 16 blocks should be visible
   const blocksToReveal = Math.floor((progress / 100) * TOTAL_BLOCKS);
+  const visibleIndices = shuffledIndices.slice(0, blocksToReveal);
+
+  if (visibleIndices.length === 0) return <div className="hidden" />;
+
+  // --- PURE CSS MASK GENERATION ---
+  // This builds a multi-part CSS mask without relying on brittle SVG IDs.
+  const maskImage = visibleIndices.map(() => "linear-gradient(black, black)").join(", ");
+  const maskSize = visibleIndices.map(() => `${100 / gridSize}% ${100 / gridSize}%`).join(", ");
+  const maskRepeat = visibleIndices.map(() => "no-repeat").join(", ");
+  
+  const maskPosition = visibleIndices.map(index => {
+    const col = index % gridSize;
+    const row = Math.floor(index / gridSize);
+    // CSS background/mask position percentage math
+    const xPos = gridSize === 1 ? 0 : (col / (gridSize - 1)) * 100;
+    const yPos = gridSize === 1 ? 0 : (row / (gridSize - 1)) * 100;
+    return `${xPos}% ${yPos}%`;
+  }).join(", ");
+
+  const maskStyle = {
+    WebkitMaskImage: maskImage,
+    WebkitMaskSize: maskSize,
+    WebkitMaskPosition: maskPosition,
+    WebkitMaskRepeat: maskRepeat,
+    maskImage: maskImage,
+    maskSize: maskSize,
+    maskPosition: maskPosition,
+    maskRepeat: maskRepeat,
+  };
 
   return (
-    <div 
-      className="absolute inset-0 z-50 grid pointer-events-none" 
-      style={{ 
-        gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${GRID_SIZE}, minmax(0, 1fr))`
-      }}
-    >
-      {Array.from({ length: TOTAL_BLOCKS }).map((_, index) => {
-        // Find out where this specific square ended up in the shuffled deck
-        const shufflePosition = shuffledIndices.indexOf(index);
-        
-        // If its position in the deck is less than our current reveal target, hide it.
-        const isRevealed = shufflePosition < blocksToReveal;
-
-        return (
-          <div 
-            key={index} 
-            // bg-white matches your canvas background. 
-            // duration-300 makes the squares fade out smoothly rather than blinking off.
-            className={`w-full h-full bg-white transition-opacity duration-300 ${
-              isRevealed ? "opacity-0" : "opacity-100"
-            }`}
-          />
-        );
-      })}
+    <div className="absolute inset-0 z-10 w-full h-full" style={maskStyle}>
+      {children}
     </div>
   );
 }
