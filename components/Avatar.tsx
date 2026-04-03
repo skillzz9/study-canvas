@@ -30,10 +30,12 @@ export default function Avatar({
     };
   };
 
-  // Helper to handle moving and flipping at the same time
+  // Helper to handle moving and flipping
   const moveAvatar = (newX: number, newY: number) => {
-    if (newX < pos.x) setFacingLeft(true);
-    else if (newX > pos.x) setFacingLeft(false);
+    // The state update for facingLeft happens instantly
+    if (newX < pos.x) setFacingLeft(false);
+    else if (newX > pos.x) setFacingLeft(true);
+    
     setPos({ x: newX, y: newY });
   };
 
@@ -60,7 +62,7 @@ export default function Avatar({
       const runArtistLoop = async () => {
         setIsBusy(true);
 
-        // 1. Glide towards the coordinate (5s)
+        // 1. Flip and glide towards the coordinate (5s)
         moveAvatar(targetCoords.x, targetCoords.y);
         await new Promise((res) => setTimeout(res, 5000));
 
@@ -70,7 +72,7 @@ export default function Avatar({
         // 3. Reveal the square
         onBlockComplete();
 
-        // 4. Glide back down to the idle zone (2s)
+        // 4. Flip and glide back down to the idle zone (2s)
         moveAvatar(200, 580);
         await new Promise((res) => setTimeout(res, 2000));
 
@@ -84,20 +86,23 @@ export default function Avatar({
 
   return (
     <div 
-      className="absolute z-50 pointer-events-none transition-all ease-in-out"
+      className="absolute z-50 pointer-events-none"
       style={{ 
         left: `${pos.x}px`, 
         top: `${pos.y}px`,
-        // We combine the centering translate with the horizontal flip
+        // The transform property is NOT in the transition list, so scaleX flips instantly
         transform: `translate(-50%, -50%) scaleX(${facingLeft ? -1 : 1})`,
-        transitionDuration: isBusy && pos.y < 400 ? "5000ms" : "2000ms" 
+        
+        // We only transition the position properties
+        transitionProperty: "left, top",
+        transitionDuration: isBusy && pos.y < 400 ? "5000ms" : "2000ms",
+        transitionTimingFunction: "ease-in-out"
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img 
         src="/avatar.webp" 
         alt="Artist" 
-        // Removed drop-shadow-lg
         className={`w-12 h-12 object-contain ${
           isBusy && pos.y < 400 ? "animate-bounce" : ""
         }`} 
