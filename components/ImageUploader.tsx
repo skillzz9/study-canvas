@@ -1,89 +1,52 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent } from "react";
-import Image from "next/image";
+import React from "react";
 
 interface ImageUploaderProps {
-  storageKey?: string;
-  onImageChange?: (image: string | null) => void;
+  image: string | null;
+  onUpload: (base64: string) => void;
+  onClear: () => void;
 }
 
-export default function ImageUploader({ 
-  storageKey = "user-avatar", 
-  onImageChange 
-}: ImageUploaderProps) {
-  const [image, setImage] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false); // Critical for Next.js
-
-  useEffect(() => {
-    setMounted(true);
-    const savedImage = localStorage.getItem(storageKey);
-    if (savedImage) {
-      setImage(savedImage);
-      onImageChange?.(savedImage);
-    }
-  }, [storageKey, onImageChange]);
-
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+export default function ImageUploader({ image, onUpload, onClear }: ImageUploaderProps) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setImage(base64String);
-        localStorage.setItem(storageKey, base64String);
-        onImageChange?.(base64String);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      onUpload(base64String);
+    };
+    reader.readAsDataURL(file);
   };
-
-  const deleteImage = () => {
-    setImage(null);
-    localStorage.removeItem(storageKey);
-    onImageChange?.(null);
-    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-    if (fileInput) fileInput.value = "";
-  };
-
-  // Prevent the "Stuck" UI by returning null until the browser is ready
-  if (!mounted) return <div className="aspect-square w-full rounded-2xl bg-zinc-100 animate-pulse" />;
-
-  if (image) {
-    return (
-      <div className="flex flex-col gap-4 w-full">
-        <div className="relative aspect-square w-full overflow-hidden rounded-2xl border-2 border-lofi-charcoal bg-white">
-          <Image
-            src={image}
-            alt="Uploaded Panda"
-            fill
-            className="object-cover"
-            unoptimized
-          />
-        </div>
-        {/* This button should now be visible */}
-        <button
-          onClick={deleteImage}
-          type="button"
-          className="w-full rounded-xl bg-red-400 py-3 font-bold text-lofi-charcoal border-2 border-lofi-charcoal shadow-[4px_4px_0px_0px_rgba(61,61,61,1)] hover:bg-red-500 active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
-        >
-          DELETE & TRY ANOTHER
-        </button>
-      </div>
-    );
-  }
 
   return (
-    <label className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-lofi-charcoal/30 bg-zinc-50/50 text-lofi-charcoal/60 hover:text-lofi-charcoal hover:border-lofi-charcoal transition-all">
-      <span className="text-4xl">+</span>
-      <span className="text-sm font-medium italic">Upload Image</span>
-      <input
-        id="file-upload"
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleImageUpload}
-      />
-    </label>
+    <div className="relative aspect-square w-full overflow-hidden rounded-2xl border-2 border-neutral-800 bg-neutral-50 mb-6 flex items-center justify-center">
+      {image ? (
+        <div className="relative w-full h-full group">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={image} alt="Preview" className="w-full h-full object-cover" />
+          
+          {/* Small clear button that appears on hover */}
+          <button 
+            onClick={onClear}
+            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity border-2 border-neutral-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-xs font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <div className="text-center text-neutral-400 p-4">
+          <p className="mb-2 text-sm font-bold uppercase tracking-tighter">Upload Visual Reward</p>
+          <input 
+            type="file" 
+            accept="image/*"
+            onChange={handleFileChange}
+            className="w-full text-sm cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-2 file:border-neutral-800 file:text-xs file:font-bold file:bg-white file:text-neutral-800 hover:file:bg-neutral-100"
+          />
+        </div>
+      )}
+    </div>
   );
 }
