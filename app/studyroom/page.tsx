@@ -9,23 +9,30 @@ export default function StudyRoomTest() {
   const router = useRouter();
   
   const [studyImage, setStudyImage] = useState<string | null>(null);
+  // 1. Create a state to hold the total target time (defaults to 360 fallback)
+  const [totalMinutes, setTotalMinutes] = useState<number>(360);
+  
+  // This is your current simulated progress
   const [minutes, setMinutes] = useState(0);
 
-  const TOTAL_MINUTES = 360;
-  const MINUTES_PER_LEVEL = 60; 
   const GRID_SIZE = 20; 
 
-  // Load the uploaded image immediately on mount
+  // 2. Load the uploaded image AND the target time on mount
   useEffect(() => {
     const savedImage = localStorage.getItem("studyImage");
+    const savedTime = localStorage.getItem("studyTime");
+
     if (!savedImage) {
       router.push("/");
     } else {
       setStudyImage(savedImage);
+      // Grab the time we calculated on the home page and save it to state
+      if (savedTime) {
+        setTotalMinutes(Number(savedTime));
+      }
     }
   }, [router]);
 
-  // Prevent any rendering bugs by waiting for the image to load
   if (!studyImage) {
     return (
       <div className="min-h-screen bg-neutral-100 flex items-center justify-center">
@@ -35,7 +42,10 @@ export default function StudyRoomTest() {
   }
 
   // --- PROGRESSIVE MATH ---
-  const safeMinutes = Math.min(Math.max(minutes, 0), TOTAL_MINUTES);
+  // 3. Dynamically calculate the chunk size based on the total time
+  const MINUTES_PER_LEVEL = totalMinutes / 6; 
+
+  const safeMinutes = Math.min(Math.max(minutes, 0), totalMinutes);
   const transitionIndex = Math.min(Math.floor(safeMinutes / MINUTES_PER_LEVEL), 5);
 
   const baseLevel = (transitionIndex + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -83,7 +93,8 @@ export default function StudyRoomTest() {
         <input 
           type="range" 
           min="0" 
-          max={TOTAL_MINUTES} 
+          // 4. Update the max range to respect the new total minutes
+          max={totalMinutes} 
           step="1" 
           value={minutes}
           onChange={(e) => setMinutes(Number(e.target.value))}
@@ -92,9 +103,10 @@ export default function StudyRoomTest() {
 
         {/* Debugging Info */}
         <div className="text-xs text-neutral-500 font-mono space-y-1 mt-4 border-t pt-4">
-          <p className="font-bold text-neutral-700">Transition Phase: {baseLevel} to {topLevel}</p>
+          <p className="font-bold text-neutral-700">Target Time: {totalMinutes} mins</p>
+          <p>Transition Phase: {baseLevel} to {topLevel}</p>
           <p>Local Hour Progress: {localProgressPercentage.toFixed(1)}%</p>
-          <p>Blocks Revealed (Current Hour): {blocksVisible} / {GRID_SIZE * GRID_SIZE}</p>
+          <p>Blocks Revealed (Current Phase): {blocksVisible} / {GRID_SIZE * GRID_SIZE}</p>
         </div>
 
       </div>

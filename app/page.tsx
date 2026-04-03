@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 
 export default function Home() {
   const router = useRouter();
+  
   const [image, setImage] = useState<string | null>(null);
+  
+  // Split time into hours and minutes
+  const [hours, setHours] = useState<number>(1);
+  const [minutes, setMinutes] = useState<number>(0);
+  
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -35,6 +41,11 @@ export default function Home() {
 
   const handleEnterStudyRoom = () => {
     if (image) {
+      // Calculate total minutes before sending to the study room
+      // We use Math.max to guarantee they study for at least 1 minute!
+      const totalMinutes = Math.max(1, (hours * 60) + minutes);
+      
+      localStorage.setItem("studyTime", totalMinutes.toString());
       router.push("/studyroom");
     }
   };
@@ -74,6 +85,38 @@ export default function Home() {
         <div className="flex flex-col gap-4">
           {image && (
             <>
+              {/* TIME INPUTS */}
+              <div className="flex gap-4">
+                
+                {/* Hours Box */}
+                <div className="flex-1 flex flex-col gap-2 rounded-xl border-2 border-neutral-800 bg-white p-3">
+                  <label className="text-xs font-bold text-neutral-500 uppercase">Hours</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="24" 
+                    value={hours}
+                    onChange={(e) => setHours(Math.max(0, Number(e.target.value)))}
+                    className="w-full text-xl font-bold text-neutral-800 bg-transparent outline-none"
+                  />
+                </div>
+
+                {/* Minutes Box */}
+                <div className="flex-1 flex flex-col gap-2 rounded-xl border-2 border-neutral-800 bg-white p-3">
+                  <label className="text-xs font-bold text-neutral-500 uppercase">Minutes</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="59" 
+                    value={minutes}
+                    onChange={(e) => setMinutes(Math.max(0, Number(e.target.value)))}
+                    className="w-full text-xl font-bold text-neutral-800 bg-transparent outline-none"
+                  />
+                </div>
+
+              </div>
+
+              {/* ACTION BUTTONS */}
               <button 
                 onClick={handleEnterStudyRoom}
                 className="w-full rounded-xl bg-blue-600 py-4 font-bold text-white border-2 border-neutral-800 shadow-[4px_4px_0px_0px_rgba(61,61,61,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase"
