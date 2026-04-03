@@ -8,7 +8,7 @@ export default function StudyRoomTest() {
   // Slider now represents 6 hours (360 minutes)
   const TOTAL_MINUTES = 360;
   const MINUTES_PER_LEVEL = 60; 
-  const GRID_SIZE = 4; // 16 blocks per transition
+  const GRID_SIZE = 20; // 16 blocks per transition
   
   const [minutes, setMinutes] = useState(0);
 
