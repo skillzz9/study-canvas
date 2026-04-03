@@ -30,7 +30,7 @@ export default function Level({ imageSrc, level }: LevelProps) {
             alt="L3-Watercolor-Wash"
             fill
             unoptimized
-            className="absolute inset-0 object-cover blur-[35px] saturate-[2.5] opacity-70 brightness-[1.1] sepia-[0.1] z-0"
+            className="absolute inset-0 object-cover blur-[35px] saturate-[1] opacity-50 brightness-[1.1] sepia-[0.1] z-0"
           />
 
           {/* 2. MIDDLE LAYER: The Paint Dabs (Adds depth to the color) */}
@@ -58,7 +58,7 @@ export default function Level({ imageSrc, level }: LevelProps) {
             alt="L4-Color-Base"
             fill
             unoptimized
-            className="object-cover blur-[25px] opacity-50 brightness-[1.1] z-0"
+            className="object-cover blur-[25px] opacity-50 sepia-[0.1] brightness-[1.1] z-0"
           />
 
           {/* 2. MIDDLE LAYER: The Paint Dabs */}
