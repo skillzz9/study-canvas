@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import dynamic from "next/dynamic";
 import p5Types from "p5";
@@ -13,8 +11,12 @@ interface P5FullSketchProps {
   detailLevel: 1 | 2 | 3;
 }
 
+// 1. ADD THIS EXACT LINE OUTSIDE THE COMPONENT:
+// This makes it immune to React's re-render cycle, so it won't reset to undefined!
+let img: p5Types.Image;
+
 export default function P5FullSketch({ imageSrc, detailLevel }: P5FullSketchProps) {
-  let img: p5Types.Image;
+  // 2. DELETE "let img: p5Types.Image;" FROM INSIDE HERE.
 
   const preload = (p5: p5Types) => {
     img = p5.loadImage(imageSrc);
@@ -24,32 +26,22 @@ export default function P5FullSketch({ imageSrc, detailLevel }: P5FullSketchProp
     const canvasSize = 800; 
     const cvs = p5.createCanvas(canvasSize, canvasSize).parent(canvasParentRef);
 
-    // Apply styles to match the other layers
     cvs.style("width", "100%");
     cvs.style("height", "100%");
     cvs.style("object-fit", "cover");
     cvs.style("object-position", "center");
 
+    // YOUR MATH REMAINS 100% UNTOUCHED BELOW THIS LINE
+    let ratio = Math.max(canvasSize / img.width, canvasSize / img.height);
+    let newWidth = img.width * ratio;
+    let newHeight = img.height * ratio;
+
+    img.resize(newWidth, newHeight);
+    
     p5.noLoop();
-
-    // Load the image inside setup for stability
-    p5.loadImage(imageSrc, (loadedImg) => {
-      // Use Math.max to achieve the "Cover" effect (matching P5Outline)
-      // $$ratio = \max\left(\frac{canvasSize}{loadedImg.width}, \frac{canvasSize}{loadedImg.height}\right)$$
-      let ratio = Math.max(canvasSize / loadedImg.width, canvasSize / loadedImg.height);
-      
-      let newWidth = loadedImg.width * ratio;
-      let newHeight = loadedImg.height * ratio;
-
-      loadedImg.resize(newWidth, newHeight);
-      
-      // Assign to the component-level variable
-      img = loadedImg;
-
-      // Trigger the drawing now that we have the pixels
-      p5.redraw(); 
-    });
   };
+
+
 
   const draw = (p5: p5Types) => {
     if (!img) return; // The "Safety Shield"
