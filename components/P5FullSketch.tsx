@@ -24,20 +24,35 @@ export default function P5FullSketch({ imageSrc, detailLevel }: P5FullSketchProp
     const canvasSize = 800; 
     const cvs = p5.createCanvas(canvasSize, canvasSize).parent(canvasParentRef);
 
+    // Apply styles to match the other layers
     cvs.style("width", "100%");
     cvs.style("height", "100%");
     cvs.style("object-fit", "cover");
     cvs.style("object-position", "center");
 
-    let ratio = Math.max(canvasSize / img.width, canvasSize / img.height);
-    let newWidth = img.width * ratio;
-    let newHeight = img.height * ratio;
-
-    img.resize(newWidth, newHeight);
     p5.noLoop();
+
+    // Load the image inside setup for stability
+    p5.loadImage(imageSrc, (loadedImg) => {
+      // Use Math.max to achieve the "Cover" effect (matching P5Outline)
+      // $$ratio = \max\left(\frac{canvasSize}{loadedImg.width}, \frac{canvasSize}{loadedImg.height}\right)$$
+      let ratio = Math.max(canvasSize / loadedImg.width, canvasSize / loadedImg.height);
+      
+      let newWidth = loadedImg.width * ratio;
+      let newHeight = loadedImg.height * ratio;
+
+      loadedImg.resize(newWidth, newHeight);
+      
+      // Assign to the component-level variable
+      img = loadedImg;
+
+      // Trigger the drawing now that we have the pixels
+      p5.redraw(); 
+    });
   };
 
   const draw = (p5: p5Types) => {
+    if (!img) return; // The "Safety Shield"
     p5.background(255);
     img.loadPixels();
 

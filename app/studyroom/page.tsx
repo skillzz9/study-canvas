@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Level from "@/components/Level";
@@ -8,43 +7,62 @@ import Avatar from "@/components/Avatar";
 
 export default function StudyRoom() {
   const router = useRouter();
+  // Holds the string of the photo that is uploaded.
   const [studyImage, setStudyImage] = useState<string | null>(null);
+
+  // Holds the value of the time set in the beggining. 
   const [totalMinutes, setTotalMinutes] = useState<number>(30); // Set to 30 for testing
   
+  // finds out how much seconds has elapsed
   const [secondsElapsed, setSecondsElapsed] = useState(0);
+  const minutes = secondsElapsed / 60;
+
+  // Turns on and off the stopwatch. 
   const [isActive, setIsActive] = useState(false);
   
-  const minutes = secondsElapsed / 60;
-  
+  // shows how many blocks have been revealed.
   const [revealedCount, setRevealedCount] = useState(0);
 
-  // 1. UPDATED CONSTANTS FOR 150 BLOCKS
-  const GRID_SIZE = 5;
-  const BLOCKS_PER_LAYER = GRID_SIZE * GRID_SIZE; // 25
+  // GRID SETTINGS
+  // --------------------------------------------------------------- //
+  const GRID_SIZE = 2;
+  const BLOCKS_PER_LAYER = GRID_SIZE * GRID_SIZE;
   const TOTAL_LAYERS = 6;
-  const TOTAL_SESSION_BLOCKS = BLOCKS_PER_LAYER * TOTAL_LAYERS; // 150
+  const TOTAL_SESSION_BLOCKS = BLOCKS_PER_LAYER * TOTAL_LAYERS;
+    // --------------------------------------------------------------- //
 
+  
+// SHUFFLING BLOCK NUMBERS - EACH NUMBER REPRESENTS A BLOCK 
+// output of this function is a shuffled array of numbers that represent a block
+// Shuffled array repeated 6 times so each layer has the same order
+// --------------------------------------------------------------- //
   const shuffledIndices = useMemo(() => {
-    const indices = Array.from({ length: BLOCKS_PER_LAYER }, (_, i) => i);
+    const indices = Array.from({ length: BLOCKS_PER_LAYER }, (_, i) => i); // create empty container with BLOCKS_PER_LAYER slots [0,1,...,BLOCKES_PER_LAYER - 1]
+    // SHUFFLING ALGO
     for (let i = indices.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [indices[i], indices[j]] = [indices[j], indices[i]];
     }
-    // We duplicate the 25 coordinates 6 times so the Avatar has a 
-    // continuous path of 150 instructions to follow without crashing.
     return Array(TOTAL_LAYERS).fill(indices).flat();
   }, [BLOCKS_PER_LAYER]);
+    // --------------------------------------------------------------- //
 
   useEffect(() => {
-    const savedImage = localStorage.getItem("studyImage");
-    const savedTime = localStorage.getItem("studyTime");
-    if (!savedImage) router.push("/");
+    const savedImage = "/test.png"
+    // const savedImage = localStorage.getItem("studyImage"); // loads image from local storage
+    const savedTime = localStorage.getItem("studyTime"); // loads time from local storage. 
+
+    // if the image is not there, we just go back
+    if (!savedImage) router.push("/"); 
     else {
       setStudyImage(savedImage);
       if (savedTime) setTotalMinutes(Number(savedTime));
     }
   }, [router]);
 
+
+  // STOP WATCH INCREMENT AND PAUSING LOGIC
+  // --------------------------------------------------------------- //
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isActive && minutes < totalMinutes) {
@@ -55,20 +73,32 @@ export default function StudyRoom() {
     return () => clearInterval(interval);
   }, [isActive, minutes, totalMinutes]);
 
+  // --------------------------------------------------------------- //
+
+  // Error handling to not crash the entire site if the study image hasnt loaded yet
   if (!studyImage) return null;
 
-  // 2. THE NEW MATH LOGIC
-  // Target blocks is now correctly calculated out of 150
+  // Figures out how many blocks the avatar should have drawn at a certain given time. 
   let targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_SESSION_BLOCKS);
 
+  // Starts the avatar right when the timer starts. 
   if (isActive || secondsElapsed > 0) {
   targetBlocksCount = Math.min(targetBlocksCount + 1, TOTAL_SESSION_BLOCKS);
 }
   
-  // Tie the background levels strictly to the Avatar's physical progress
+
+
+// THIS CHANGES THE LEVELS DEPENDING ON THE TIME (this is where the img width error is coming from)
+// --------------------------------------------------------------- //
+  // checks what layer we are currently on. example of 5x5 grid, once it reaches 25 blocks, that means the first layer is completed and we switch levels
   const currentLayerIndex = Math.min(Math.floor(revealedCount / BLOCKS_PER_LAYER), TOTAL_LAYERS - 1);
+
+  // the level underneath thats getting drawn ontop of 
   const baseLevel = (currentLayerIndex + 1) as any;
+  // the level above thats getting drawn
   const topLevel = (currentLayerIndex + 2) as any;
+// --------------------------------------------------------------- //
+
 
   // Calculate mask progress for the current layer (resets to 0% every 25 blocks)
   const blocksRevealedInCurrentLayer = revealedCount % BLOCKS_PER_LAYER;

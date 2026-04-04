@@ -21,18 +21,48 @@ export default function P5Outline({ imageSrc, detailLevel }: P5OutlineProps) {
   };
 
   const setup = (p5: p5Types, canvasParentRef: Element) => {
-    const canvasSize = 400;
-    p5.createCanvas(canvasSize, canvasSize).parent(canvasParentRef);
+  const canvasSize = 400;
+  
+  // 1. ALWAYS create the canvas first. 
+  // If you don't, p5 won't have a place to draw once the image loads.
+  p5.createCanvas(canvasSize, canvasSize).parent(canvasParentRef);
 
-    let ratio = Math.max(canvasSize / img.width, canvasSize / img.height);
-    let newWidth = img.width * ratio;
-    let newHeight = img.height * ratio;
+  // 2. Stop the draw loop immediately. 
+  // We don't want it trying to draw a null image while we wait.
+  p5.noLoop();
 
-    img.resize(newWidth, newHeight);
-    p5.noLoop();
-  };
+  // 3. Start the loading process.
+  p5.loadImage(imageSrc, (loadedImg) => {
+    // --- THIS BLOCK ONLY RUNS ONCE THE IMAGE IS FULLY DECODED ---
+    
+    // Calculate the ratio using formal math:
+    // $$ratio = \max\left(\frac{canvasSize}{loadedImg.width}, \frac{canvasSize}{loadedImg.height}\right)$$
+    let ratio = Math.max(canvasSize / loadedImg.width, canvasSize / loadedImg.height);
+    
+    let newWidth = loadedImg.width * ratio;
+    let newHeight = loadedImg.height * ratio;
+
+    // Resize the image to fit the 400x400 area
+    loadedImg.resize(newWidth, newHeight);
+
+    // Save it to your component-level variable so 'draw' can see it
+    img = loadedImg;
+
+    // 4. Now that everything is resized and ready, trigger the drawing
+    p5.redraw(); 
+    
+    // --- END OF SAFE ZONE ---
+  }, (err) => {
+    console.error("p5 failed to load image:", err);
+  });
+};
 
   const draw = (p5: p5Types) => {
+
+    // this line makes sure if the image has not been loaded yet, we wait until its loaded. 
+    if (!img || img.width === 0) {
+    return; 
+  }
     p5.background(255);
     img.loadPixels();
 

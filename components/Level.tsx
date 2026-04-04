@@ -19,6 +19,7 @@ export default function Level({ imageSrc, level }: LevelProps) {
       );
 
     case 2:
+
       return <P5Outline imageSrc={imageSrc} detailLevel={2} />;
 
     case 3:
