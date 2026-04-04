@@ -47,17 +47,30 @@ export default function StudyRoom() {
   }, [BLOCKS_PER_LAYER]);
     // --------------------------------------------------------------- //
 
-  useEffect(() => {
-    const savedImage = "/test.png"
-    // const savedImage = localStorage.getItem("studyImage"); // loads image from local storage
-    const savedTime = localStorage.getItem("studyTime"); // loads time from local storage. 
+useEffect(() => {
+    const savedImage = localStorage.getItem("studyImage"); 
+    const savedTime = localStorage.getItem("studyTime"); 
 
-    // if the image is not there, we just go back
-    if (!savedImage) router.push("/"); 
-    else {
-      setStudyImage(savedImage);
+    if (!savedImage) {
+      router.push("/"); 
+    } else {
+      // THE FIX: Convert the heavy Base64 string into a fast, cacheable Blob URL
+      fetch(savedImage)
+        .then((res) => res.blob())
+        .then((blob) => {
+          const fastUrl = URL.createObjectURL(blob);
+          setStudyImage(fastUrl);
+        });
+
       if (savedTime) setTotalMinutes(Number(savedTime));
     }
+    
+    // Clean up the Blob URL when the user leaves the room to free up memory
+    return () => {
+      if (studyImage && studyImage.startsWith("blob:")) {
+        URL.revokeObjectURL(studyImage);
+      }
+    };
   }, [router]);
 
 

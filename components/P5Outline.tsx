@@ -14,66 +14,56 @@ interface P5OutlineProps {
 }
 
 export default function P5Outline({ imageSrc, detailLevel }: P5OutlineProps) {
-  let img: p5Types.Image;
+  // 1. Removed the local 'img' variable entirely to protect it from React re-renders.
 
   const preload = (p5: p5Types) => {
-    img = p5.loadImage(imageSrc);
+    // Just warm up the cache. No variable assignment needed.
+    p5.loadImage(imageSrc);
   };
 
   const setup = (p5: p5Types, canvasParentRef: Element) => {
-  const canvasSize = 400;
-  
-  // 1. ALWAYS create the canvas first. 
-  // If you don't, p5 won't have a place to draw once the image loads.
-  p5.createCanvas(canvasSize, canvasSize).parent(canvasParentRef);
+    const canvasSize = 400;
+    const cvs = p5.createCanvas(canvasSize, canvasSize).parent(canvasParentRef);
 
-  // 2. Stop the draw loop immediately. 
-  // We don't want it trying to draw a null image while we wait.
-  p5.noLoop();
+    // Ensure the canvas scales up perfectly to match your other layers
+    cvs.style("width", "100%");
+    cvs.style("height", "100%");
+    cvs.style("object-fit", "cover");
+    cvs.style("object-position", "center");
 
-  // 3. Start the loading process.
-  p5.loadImage(imageSrc, (loadedImg) => {
-    // --- THIS BLOCK ONLY RUNS ONCE THE IMAGE IS FULLY DECODED ---
-    
-    // Calculate the ratio using formal math:
-    // $$ratio = \max\left(\frac{canvasSize}{loadedImg.width}, \frac{canvasSize}{loadedImg.height}\right)$$
-    let ratio = Math.max(canvasSize / loadedImg.width, canvasSize / loadedImg.height);
-    
-    let newWidth = loadedImg.width * ratio;
-    let newHeight = loadedImg.height * ratio;
+    p5.noLoop();
 
-    // Resize the image to fit the 400x400 area
-    loadedImg.resize(newWidth, newHeight);
+    p5.loadImage(imageSrc, (loadedImg) => {
+      let ratio = Math.max(canvasSize / loadedImg.width, canvasSize / loadedImg.height);
+      let newWidth = loadedImg.width * ratio;
+      let newHeight = loadedImg.height * ratio;
 
-    // Save it to your component-level variable so 'draw' can see it
-    img = loadedImg;
+      // 2. THE CLONE FIX: Detach the pixels from the shared browser cache
+      // This stops Level 3 from accidentally resizing Level 2's image.
+      let clonedImg = loadedImg.get();
+      clonedImg.resize(newWidth, newHeight);
 
-    // 4. Now that everything is resized and ready, trigger the drawing
-    p5.redraw(); 
-    
-    // --- END OF SAFE ZONE ---
-  }, (err) => {
-    console.error("p5 failed to load image:", err);
-  });
-};
+      // 3. THE SCOPE FIX: Attach directly to this specific p5 instance
+      (p5 as any).myImg = clonedImg;
+
+      p5.redraw(); 
+    });
+  };
 
   const draw = (p5: p5Types) => {
+    // 4. Retrieve the safe, cloned image
+    const img = (p5 as any).myImg;
 
-    // this line makes sure if the image has not been loaded yet, we wait until its loaded. 
     if (!img || img.width === 0) {
-    return; 
-  }
+      return; 
+    }
+
     p5.background(255);
     img.loadPixels();
 
     const offsetX = (p5.width - img.width) / 2;
     const offsetY = (p5.height - img.height) / 2;
 
-    // CONFIG: 
-    // step = grid size (higher means broader, simpler shapes)
-    // threshold = edge sensitivity (higher ignores light shading)
-    // minLength = deletes small scribbles (removes the "hair" look)
-    // jumpRadius = allows the line to bridge small gaps
     const settings = {
       1: { step: 8, threshold: 50, jumpRadius: 3, weight: 2.0, minLength: 8 }, 
       2: { step: 4, threshold: 35, jumpRadius: 2, weight: 1.2, minLength: 5 }, 
@@ -85,7 +75,6 @@ export default function P5Outline({ imageSrc, detailLevel }: P5OutlineProps) {
     let cols = Math.floor(img.width / step);
     let rows = Math.floor(img.height / step);
     
-    // Create a spatial grid to store edge nodes
     let grid: any[][] = Array(cols).fill(null).map(() => Array(rows).fill(null));
     let allEdges = [];
 
@@ -124,7 +113,6 @@ export default function P5Outline({ imageSrc, detailLevel }: P5OutlineProps) {
       let path = [];
       let current = startNode;
 
-      // Walk along the edge pixels until the line breaks
       while (current) {
         path.push(current);
         current.used = true;
@@ -132,7 +120,6 @@ export default function P5Outline({ imageSrc, detailLevel }: P5OutlineProps) {
         let nextNode = null;
         let minD = Infinity;
 
-        // Search neighboring pixels to continue the line
         for (let r = 1; r <= jumpRadius; r++) {
           for (let dx = -r; dx <= r; dx++) {
             for (let dy = -r; dy <= r; dy++) {
@@ -144,7 +131,6 @@ export default function P5Outline({ imageSrc, detailLevel }: P5OutlineProps) {
               if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
                 let neighbor = grid[nx][ny];
                 if (neighbor && !neighbor.used) {
-                   // Prioritize the closest neighbor
                    let distSq = dx * dx + dy * dy;
                    if (distSq < minD) {
                       minD = distSq;
@@ -163,7 +149,6 @@ export default function P5Outline({ imageSrc, detailLevel }: P5OutlineProps) {
       if (path.length >= minLength) {
         p5.beginShape();
         
-        // p5 curveVertex needs duplicate start and end points for mathematical guides
         p5.curveVertex(path[0].x, path[0].y); 
         
         for (let pt of path) {
@@ -176,5 +161,5 @@ export default function P5Outline({ imageSrc, detailLevel }: P5OutlineProps) {
     }
   };
 
-  return <Sketch className="absolute inset-0 w-full h-full"  preload={preload} setup={setup} draw={draw} />;
+  return <Sketch className="absolute inset-0 w-full h-full" preload={preload} setup={setup} draw={draw} />;
 }

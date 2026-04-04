@@ -7,7 +7,7 @@ import P5FullSketch from "./P5FullSketch";
 
 interface LevelProps {
   imageSrc: string;
-  level: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  level: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 }
 
 export default function Level({ imageSrc, level }: LevelProps) {
@@ -147,6 +147,17 @@ export default function Level({ imageSrc, level }: LevelProps) {
       );
 
     case 7:
+      return (
+        <Image
+          src={imageSrc}
+          alt="L7-Final"
+          fill
+          unoptimized
+          className="object-cover"
+        />
+      );
+
+          case 8:
       return (
         <Image
           src={imageSrc}
