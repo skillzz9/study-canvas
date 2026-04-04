@@ -59,7 +59,11 @@ export default function StudyRoom() {
 
   // 2. THE NEW MATH LOGIC
   // Target blocks is now correctly calculated out of 150
-  const targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_SESSION_BLOCKS);
+  let targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_SESSION_BLOCKS);
+
+  if (isActive || secondsElapsed > 0) {
+  targetBlocksCount = Math.min(targetBlocksCount + 1, TOTAL_SESSION_BLOCKS);
+}
   
   // Tie the background levels strictly to the Avatar's physical progress
   const currentLayerIndex = Math.min(Math.floor(revealedCount / BLOCKS_PER_LAYER), TOTAL_LAYERS - 1);
