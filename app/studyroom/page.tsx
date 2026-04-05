@@ -47,14 +47,20 @@ export default function StudyRoom() {
   }, [BLOCKS_PER_LAYER]);
     // --------------------------------------------------------------- //
 
+// LOADING IMAGE 
+// ------------------------------------------------------------------- //
 useEffect(() => {
+  // gathering image from local storage 
     const savedImage = localStorage.getItem("studyImage"); 
+
+    // gathering time from local storage 
     const savedTime = localStorage.getItem("studyTime"); 
 
+    // error handling 
     if (!savedImage) {
       router.push("/"); 
     } else {
-      // THE FIX: Convert the heavy Base64 string into a fast, cacheable Blob URL
+      // convert image to blob URL, makes it load faster.
       fetch(savedImage)
         .then((res) => res.blob())
         .then((blob) => {
@@ -72,7 +78,7 @@ useEffect(() => {
       }
     };
   }, [router]);
-
+// ------------------------------------------------------------------- //
 
   // STOP WATCH INCREMENT AND PAUSING LOGIC
   // --------------------------------------------------------------- //

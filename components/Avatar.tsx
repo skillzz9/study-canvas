@@ -17,6 +17,7 @@ export default function Avatar({
   onBlockComplete,
   userName,
 }: AvatarProps) {
+  // 
   const [completedLocally, setCompletedLocally] = useState(0);
   const [isBusy, setIsBusy] = useState(false);
   const [pos, setPos] = useState({ x: 200, y: 580 }); 
