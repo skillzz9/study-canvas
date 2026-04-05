@@ -22,6 +22,7 @@ export default function Avatar({
   const [isBusy, setIsBusy] = useState(false);
   const [pos, setPos] = useState({ x: 200, y: 580 }); 
   const [facingLeft, setFacingLeft] = useState(false);
+  const [isWalking, setIsWalking] = useState(false);
 
   const getCoords = (index: number) => {
     const col = index % gridSize;
@@ -102,26 +103,39 @@ export default function Avatar({
         transitionTimingFunction: "ease-in-out"
       }}
     >
-        <div 
-      className="mb-1"
-      style={{ 
-        // COUNTER-FLIP: this flips the text back so it's readable
-        transform: `scaleX(${facingLeft ? -1 : 1})` 
-      }}
-    >
-      <h1 className="text-[10px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap px-1 rounded">
-        {userName}
-      </h1>
-    </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img 
-        src="/avatar.webp" 
-        alt="Artist" 
-        className={`w-12 h-12 object-contain ${
-          isBusy && pos.y < 400 ? "animate-bounce" : ""
-        }`} 
-      />
+      <div 
+        className="mb-1"
+        style={{ 
+          // COUNTER-FLIP: this flips the text back so it's readable
+          transform: `scaleX(${facingLeft ? -1 : 1})` 
+        }}
+      >
+        <h1 className="text-[10px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap px-1 rounded">
+          {userName}
+        </h1>
       </div>
 
+      {/* THE FIX: Wrapping the images in a relative container */}
+      <div className="relative">
+        
+        {/* The Paintbrush */}
+        <img 
+          src="/paintbrush.png" 
+          alt="Paintbrush" 
+          className={`absolute -top-3 -left-3 w-6 h-6 object-contain transition-opacity duration-300 z-10 ${
+            isBusy ? "opacity-100" : "opacity-0"
+          }`}
+        />
+
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img 
+          src="/avatar.webp" 
+          alt="Artist" 
+          className={`w-12 h-12 object-contain ${
+            isBusy && pos.y < 400 ? "animate-bounce" : ""
+          }`} 
+        />
+      </div>
+    </div>
   );
 }

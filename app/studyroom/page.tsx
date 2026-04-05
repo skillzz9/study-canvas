@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import Level from "@/components/Level";
 import GridRevealMask from "@/components/GridRevealMask";
 import Avatar from "@/components/Avatar";
+import Stopwatch from "@/components/Stopwatch";
+import Desk from "@/components/Desk";
 
 export default function StudyRoom() {
   const router = useRouter();
@@ -148,24 +150,11 @@ useEffect(() => {
         </div>
 
         {/* THE STOPWATCH BOX */}
-        <div className="w-[400px] flex bg-white p-2 rounded-3xl border-4 border-neutral-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-20 items-center gap-4 justify-center">
-                    <button 
-            onClick={() => setIsActive(!isActive)}
-            className="w-20 py-4 border-4 border-neutral-800 font-space rounded-3xl font-bold uppercase transition-all bg-blue-500 text-white hover:bg-blue-600"
-          >
-            {isActive ? "Pause" : "Start"}
-          </button>
-          <div className="text-center font-space text-neutral-800 uppercase tracking-widest text-4xl">
-            {String(Math.floor(secondsElapsed / 3600)).padStart(2, '0')}:
-            {String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0')}:
-            {String(secondsElapsed % 60).padStart(2, '0')}
-          </div>
-          <button 
-            className="w-20 py-4 border-4 border-neutral-800 font-space rounded-3xl font-bold uppercase transition-all bg-lofi-charcoal text-white "
-          >
-            1x
-          </button>
-        </div>
+        <Stopwatch 
+          isActive={isActive} 
+          secondsElapsed={secondsElapsed} 
+          onToggle={() => setIsActive(!isActive)} 
+        />
 
         {/* THE AVATAR */}
         <Avatar 
@@ -175,6 +164,7 @@ useEffect(() => {
           gridSize={GRID_SIZE}
           onBlockComplete={() => setRevealedCount(prev => prev + 1)}
         />
+        <Desk topPosition={600} />
 
       </div>
     </main>
