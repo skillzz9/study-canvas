@@ -1,9 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600&display=swap');
 @import "tailwindcss";
 
+
 @theme {
+  /* Colors */
   --color-panda-white: #fefaf0;
   --color-lofi-charcoal: #3d3d3d;
   --color-cozy-beige: #f5e6d3;
+  --color-paper: oklch(0.94 0.03 85);
+
+  /* Fonts */
+  /* This creates a class called 'font-space' */
+  --font-space: "Space Grotesk", sans-serif;
 }
 
 /* Custom Sketch Utilities */

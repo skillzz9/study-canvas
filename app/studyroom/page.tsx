@@ -128,9 +128,8 @@ useEffect(() => {
   // --------------------------------------------------------------- //
 
   return (
-    <main className="min-h-screen bg-neutral-100 flex flex-col items-center justify-center p-8">
-      
-      <div className="relative flex flex-col items-center space-y-12 pb-24">
+    <main className="min-h-screen bg-paper flex flex-col items-center justify-center">
+      <div className="relative flex flex-col items-center pb-40">
         
         {/* THE CANVAS */}
         <div className="w-[400px] h-[400px] relative shadow-2xl bg-white rounded-2xl border-4 border-neutral-800 overflow-hidden">
@@ -149,17 +148,22 @@ useEffect(() => {
         </div>
 
         {/* THE STOPWATCH BOX */}
-        <div className="w-[400px] bg-white p-8 rounded-3xl border-4 border-neutral-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-20 flex flex-col items-center gap-4">
-          <div className="text-center font-bold text-neutral-800 uppercase tracking-widest font-mono text-4xl mb-2">
+        <div className="w-[400px] flex bg-white p-2 rounded-3xl border-4 border-neutral-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-20 items-center gap-4 justify-center">
+                    <button 
+            onClick={() => setIsActive(!isActive)}
+            className="w-20 py-4 border-4 border-neutral-800 font-space rounded-3xl font-bold uppercase transition-all bg-blue-500 text-white hover:bg-blue-600"
+          >
+            {isActive ? "Pause" : "Start"}
+          </button>
+          <div className="text-center font-space text-neutral-800 uppercase tracking-widest text-4xl">
             {String(Math.floor(secondsElapsed / 3600)).padStart(2, '0')}:
             {String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0')}:
             {String(secondsElapsed % 60).padStart(2, '0')}
           </div>
           <button 
-            onClick={() => setIsActive(!isActive)}
-            className="w-full py-4 border-4 border-neutral-800 font-bold uppercase transition-all bg-blue-500 text-white hover:bg-blue-600"
+            className="w-20 py-4 border-4 border-neutral-800 font-space rounded-3xl font-bold uppercase transition-all bg-lofi-charcoal text-white "
           >
-            {isActive ? "Pause" : "Start"}
+            1x
           </button>
         </div>
 
