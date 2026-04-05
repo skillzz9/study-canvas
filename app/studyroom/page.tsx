@@ -107,21 +107,25 @@ useEffect(() => {
   
 
 
-// THIS CHANGES THE LEVELS DEPENDING ON THE TIME (this is where the img width error is coming from)
+// THIS CHANGES THE LEVELS DEPENDING ON THE TIME
 // --------------------------------------------------------------- //
+// checks end state 
+  const isSessionComplete = revealedCount >= TOTAL_SESSION_BLOCKS;
+
   // checks what layer we are currently on. example of 5x5 grid, once it reaches 25 blocks, that means the first layer is completed and we switch levels
   const currentLayerIndex = Math.min(Math.floor(revealedCount / BLOCKS_PER_LAYER), TOTAL_LAYERS - 1);
 
-  // the level underneath thats getting drawn ontop of 
-  const baseLevel = (currentLayerIndex + 1) as any;
+  // the level underneath thats getting drawn ontop of, if the session is complete, then show level 7 as the base.  
+  const baseLevel = isSessionComplete ? 7 : (currentLayerIndex + 1) as any;
   // the level above thats getting drawn
   const topLevel = (currentLayerIndex + 2) as any;
-// --------------------------------------------------------------- //
 
-
-  // Calculate mask progress for the current layer (resets to 0% every 25 blocks)
+  // Shows how many blocks have been revelaed for that layer 
   const blocksRevealedInCurrentLayer = revealedCount % BLOCKS_PER_LAYER;
+
+  // Represents the progress in terms of a percentage.
   const maskProgress = (blocksRevealedInCurrentLayer / BLOCKS_PER_LAYER) * 100;
+  // --------------------------------------------------------------- //
 
   return (
     <main className="min-h-screen bg-neutral-100 flex flex-col items-center justify-center p-8">

@@ -89,7 +89,7 @@ export default function Avatar({
 
   return (
     <div 
-      className="absolute z-50 pointer-events-none"
+      className="absolute z-50 pointer-events-none flex flex-col items-center"
       style={{ 
         left: `${pos.x}px`, 
         top: `${pos.y}px`,
@@ -109,7 +109,7 @@ export default function Avatar({
         transform: `scaleX(${facingLeft ? -1 : 1})` 
       }}
     >
-      <h1 className="text-[10px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap bg-white/80 px-1 rounded">
+      <h1 className="text-[10px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap px-1 rounded">
         {userName}
       </h1>
     </div>
