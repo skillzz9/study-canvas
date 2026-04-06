@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { doc, onSnapshot, collection, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import Level from "@/components/Level";
 import GridRevealMask from "@/components/GridRevealMask";
 import Avatar from "@/components/Avatar";
@@ -9,6 +11,7 @@ import Desk from "@/components/Desk";
 import { useAuth } from "@/context/AuthContext";
 import { getUserDocument } from "@/lib/userService";
 import { UserProfile } from "@/types";
+import { updatePresence, leaveGlobalRoom } from "@/lib/roomService";
 
 export default function StudyRoom() {
   const router = useRouter();
@@ -32,6 +35,12 @@ export default function StudyRoom() {
   
   // shows how many blocks have been revealed.
   const [revealedCount, setRevealedCount] = useState(0);
+
+  // --- MULTIPLAYER STATES ---
+  const [collaborators, setCollaborators] = useState<any[]>([]);
+  const [numOfAvatars, setNumOfAvatars] = useState(1);
+  const [bankedMs, setBankedMs] = useState(0);
+  const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
 
   // GRID SETTINGS
   // --------------------------------------------------------------- //
@@ -57,11 +66,75 @@ export default function StudyRoom() {
   }, [BLOCKS_PER_LAYER]);
     // --------------------------------------------------------------- //
 
+// 1. SYNC ROOM DATA (Timer, revealedCount, totalBlocks)
+useEffect(() => {
+  const roomRef = doc(db, "rooms", "global-room");
+  const unsubscribe = onSnapshot(roomRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      setRevealedCount(data.revealedCount || 0);
+      setNumOfAvatars(data.numOfAvatars || 1);
+      setBankedMs(data.accumulatedMs || 0);
+      
+      if (data.lastStartTime) {
+        setGlobalStartTime(data.lastStartTime.toDate().getTime());
+        // FIX: Removed setIsActive(data.status === "active") so it doesn't auto-start
+      }
+    }
+  });
+  return () => unsubscribe();
+}, []);
+
+// 2. SYNC PRESENCE (All Avatars)
+useEffect(() => {
+  if (!user || !userData) return;
+
+  updatePresence(user, userData);
+  const presenceRef = collection(db, "rooms", "global-room", "presence");
+
+  const unsubscribe = onSnapshot(presenceRef, (snapshot) => {
+    const players = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    setCollaborators(players);
+  });
+
+  return () => {
+    leaveGlobalRoom(user.uid);
+    unsubscribe();
+  };
+}, [user, userData]);
+
+// 3. MILLISECOND ACCURATE STOPWATCH CALCULATION
+useEffect(() => {
+  let interval: NodeJS.Timeout;
+  if (isActive && globalStartTime) {
+    interval = setInterval(() => {
+      const now = Date.now();
+      const msSinceCheckpoint = now - globalStartTime;
+      const totalMs = bankedMs + msSinceCheckpoint;
+      // Convert to seconds for the display and logic
+      setSecondsElapsed(totalMs / 1000);
+    }, 50); // High frequency for millisecond feel
+  }
+  return () => clearInterval(interval);
+}, [isActive, globalStartTime, bankedMs]);
+
+// 4. SYNC BLOCK COMPLETION
+const handleBlockComplete = async () => {
+  const roomRef = doc(db, "rooms", "global-room");
+  await updateDoc(roomRef, {
+    revealedCount: revealedCount + 1
+  });
+};
+
 // LOADING IMAGE 
 // ------------------------------------------------------------------- //
 useEffect(() => {
   // gathering image from local storage 
-    const savedImage = localStorage.getItem("studyImage"); 
+    // const savedImage = localStorage.getItem("studyImage"); 
+    const savedImage = "test.png"
 
     // gathering time from local storage 
     const savedTime = localStorage.getItem("studyTime"); 
@@ -89,20 +162,6 @@ useEffect(() => {
     };
   }, [router]);
 // ------------------------------------------------------------------- //
-
-  // STOP WATCH INCREMENT AND PAUSING LOGIC
-  // --------------------------------------------------------------- //
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isActive && minutes < totalMinutes) {
-      interval = setInterval(() => {
-        setSecondsElapsed((prev) => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isActive, minutes, totalMinutes]);
-
-  // --------------------------------------------------------------- //
 
 // GETTING USER DATA FOR AVATAR
 useEffect(() => {
@@ -191,15 +250,21 @@ useEffect(() => {
           onToggle={() => setIsActive(!isActive)} 
         />
 
+        {/* RENDERING ALL COLLABORATORS */}
+        {collaborators.map((player, index) => (
+          <Avatar 
+            key={player.id}
+            avatarSrc={player.avatar}
+            userName={player.username}
+            targetBlocksCount={targetBlocksCount}
+            shuffledIndices={shuffledIndices}
+            gridSize={GRID_SIZE}
+            xOffset={index * 60} 
+            // Only the local user triggers the database update
+            onBlockComplete={player.id === user?.uid ? handleBlockComplete : undefined}
+          />
+        ))}
 
-                <Avatar 
-                avatarSrc={userData?.avatar || "/avatars/avatar1.webp"}
-          userName={userData?.username || "Hugo"}
-          targetBlocksCount={targetBlocksCount}
-          shuffledIndices={shuffledIndices}
-          gridSize={GRID_SIZE}
-          onBlockComplete={() => setRevealedCount(prev => prev + 1)}
-        />
         <Desk topPosition={600} />
 
       </div>

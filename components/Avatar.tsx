@@ -6,9 +6,10 @@ interface AvatarProps {
   targetBlocksCount: number;
   shuffledIndices: number[];
   gridSize: number;
-  onBlockComplete: () => void;
+  onBlockComplete?: () => void | Promise<void>;
   userName: string;
   avatarSrc: string;
+  xOffset?: number; // Added for multiplayer spacing
 }
 
 export default function Avatar({ 
@@ -18,13 +19,13 @@ export default function Avatar({
   gridSize, 
   onBlockComplete,
   userName,
+  xOffset = 0, // Default to 0 if not provided
 }: AvatarProps) {
-  // 
+  
   const [completedLocally, setCompletedLocally] = useState(0);
   const [isBusy, setIsBusy] = useState(false);
   const [pos, setPos] = useState({ x: 200, y: 580 }); 
   const [facingLeft, setFacingLeft] = useState(false);
-  const [isWalking, setIsWalking] = useState(false);
 
   const getCoords = (index: number) => {
     const col = index % gridSize;
@@ -38,29 +39,21 @@ export default function Avatar({
 
   // Helper to handle moving and flipping
   const moveAvatar = (newX: number, newY: number) => {
-    // The state update for facingLeft happens instantly
-    if (newX < pos.x) setFacingLeft(false);
-    else if (newX > pos.x) setFacingLeft(true);
-    
-    setPos({ x: newX, y: newY });
+    setPos(currentPos => {
+      if (newX < currentPos.x) setFacingLeft(false);
+      else if (newX > currentPos.x) setFacingLeft(true);
+      return { x: newX, y: newY };
+    });
   };
 
   // --- IDLE ROAMING LOGIC ---
- useEffect(() => {
+  useEffect(() => {
     let idleInterval: NodeJS.Timeout;
 
     if (!isBusy) {
       idleInterval = setInterval(() => {
         const randomX = 50 + Math.random() * 300; 
-        
-        // Use a functional update to avoid pos.x dependency
-        setPos(currentPos => {
-          // Determine flip based on current position vs new random target
-          if (randomX < currentPos.x) setFacingLeft(false);
-          else if (randomX > currentPos.x) setFacingLeft(true);
-          
-          return { x: randomX, y: 580 };
-        });
+        moveAvatar(randomX, 580);
       }, 4000); 
     }
 
@@ -69,8 +62,11 @@ export default function Avatar({
 
   // --- DRAWING LOOP ---
   useEffect(() => {
+    // Removed pos.x dependency to prevent infinite re-triggers
     if (targetBlocksCount > completedLocally && !isBusy) {
       const nextIndex = shuffledIndices[completedLocally];
+      if (nextIndex === undefined) return;
+      
       const targetCoords = getCoords(nextIndex);
 
       const runArtistLoop = async () => {
@@ -83,8 +79,8 @@ export default function Avatar({
         // 2. Stay and paint (3s)
         await new Promise((res) => setTimeout(res, 3000));
 
-        // 3. Reveal the square
-        onBlockComplete();
+        // 3. Reveal the square (FIX: Optional chaining for TS safety)
+        onBlockComplete?.();
 
         // 4. Flip and glide back down to the idle zone (2s)
         moveAvatar(200, 580);
@@ -96,18 +92,16 @@ export default function Avatar({
 
       runArtistLoop();
     }
-  }, [targetBlocksCount, completedLocally, isBusy, shuffledIndices, gridSize, pos.x]);
+  }, [targetBlocksCount, completedLocally, isBusy, shuffledIndices, gridSize]);
 
   return (
     <div 
       className="absolute z-50 pointer-events-none flex flex-col items-center"
       style={{ 
-        left: `${pos.x}px`, 
+        // Use xOffset to prevent avatars from standing on top of each other
+        left: `${pos.x + xOffset}px`, 
         top: `${pos.y}px`,
-        // The transform property is NOT in the transition list, so scaleX flips instantly
         transform: `translate(-50%, -50%) scaleX(${facingLeft ? -1 : 1})`,
-        
-        // We only transition the position properties
         transitionProperty: "left, top",
         transitionDuration: isBusy && pos.y < 400 ? "5000ms" : "2000ms",
         transitionTimingFunction: "ease-in-out"
@@ -116,19 +110,15 @@ export default function Avatar({
       <div 
         className="mb-1"
         style={{ 
-          // COUNTER-FLIP: this flips the text back so it's readable
           transform: `scaleX(${facingLeft ? -1 : 1})` 
         }}
       >
-        <h1 className="text-[10px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap px-1 rounded">
+        <h1 className="text-[10px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap px-1 rounded bg-white/80 border border-neutral-200">
           {userName}
         </h1>
       </div>
 
-      {/* THE FIX: Wrapping the images in a relative container */}
       <div className="relative">
-        
-        {/* The Paintbrush */}
         <img 
           src="/paintbrush.png" 
           alt="Paintbrush" 
@@ -137,10 +127,9 @@ export default function Avatar({
           }`}
         />
 
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img 
           src={avatarSrc} 
-          alt="Artist" 
+          alt={userName} 
           className={`w-12 h-12 object-contain ${
             isBusy && pos.y < 400 ? "animate-bounce" : ""
           }`} 
