@@ -20,6 +20,8 @@ export default function StudyRoom() {
   // Gets the actual user data in the firestore. 
   const [userData, setUserData] = useState<UserProfile | null>(null);
 
+  // the global database shuffled indicies 
+  const [dbShuffledIndices, setDbShuffledIndices] = useState<number[]>([]);
     // gives me loading state when things are loading 
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -34,8 +36,6 @@ export default function StudyRoom() {
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const minutes = secondsElapsed / 60;
 
-  // Turns on and off the stopwatch. 
-  const [isActive, setIsActive] = useState(false);
   
   // shows how many blocks have been revealed.
   const [revealedCount, setRevealedCount] = useState(0);
@@ -45,13 +45,11 @@ export default function StudyRoom() {
 // the array of profile objects (with username and avatar) in the room
   const [collaborators, setCollaborators] = useState<any[]>([]);
   // number of avatars
-  const [numOfAvatars, setNumOfAvatars] = useState(1);
   // how much seconds have passed SINCE the last time it was set to active. 
   const [bankedMs, setBankedMs] = useState(0);
   // counts the millsecond the room was most recently became active
   const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
 // --------------------------------------------------------------------- //
-
   // GRID SETTINGS
   // --------------------------------------------------------------- //
   const GRID_SIZE = 2;
@@ -60,21 +58,11 @@ export default function StudyRoom() {
   const TOTAL_SESSION_BLOCKS = BLOCKS_PER_LAYER * TOTAL_LAYERS;
     // --------------------------------------------------------------- //
 
-  
-// SHUFFLING BLOCK NUMBERS - EACH NUMBER REPRESENTS A BLOCK 
-// output of this function is a shuffled array of numbers that represent a block
-// Shuffled array repeated 6 times so each layer has the same order
-// --------------------------------------------------------------- //
-  const shuffledIndices = useMemo(() => {
-    const indices = Array.from({ length: BLOCKS_PER_LAYER }, (_, i) => i); // create empty container with BLOCKS_PER_LAYER slots [0,1,...,BLOCKES_PER_LAYER - 1]
-    // SHUFFLING ALGO
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    return Array(TOTAL_LAYERS).fill(indices).flat();
-  }, [BLOCKS_PER_LAYER]);
-    // --------------------------------------------------------------- //
+  // getting the same order of workers for everyone (sorting them)
+const sortedWorkers = useMemo(() => {
+    return [...collaborators].sort((a, b) => a.id.localeCompare(b.id));
+  }, [collaborators]);
+
 
 // SYNCING LOGIC FOR WHEN JOINING 
 // --------------------------------------------------------------- //
@@ -84,7 +72,6 @@ useEffect(() => {
     if (snapshot.exists()) {
       const data = snapshot.data();
       setRevealedCount(data.revealedCount || 0); // syncs how many squares have been revealed
-      setNumOfAvatars(data.numOfAvatars || 1); // syncs the number of avatars
       setBankedMs(data.accumulatedMs || 0); // syncs the stopwatch
       
       if (data.lastStartTime) {
@@ -120,17 +107,22 @@ useEffect(() => {
 // --------------------------------------------------------------- //
 
 useEffect(() => {
-  let interval: NodeJS.Timeout;
-  if (isActive && globalStartTime) {
-    interval = setInterval(() => {
-      const now = Date.now();
-      const msSinceCheckpoint = now - globalStartTime;
-      const totalMs = bankedMs + msSinceCheckpoint;
-      setSecondsElapsed(totalMs / 1000);
-    }, 50);
-  }
-  return () => clearInterval(interval);
-}, [isActive, globalStartTime, bankedMs]);
+    let interval: NodeJS.Timeout;
+    if (globalStartTime) {
+      interval = setInterval(() => {
+        const now = Date.now();
+        const msSinceCheckpoint = now - globalStartTime;
+        
+        // Multiplier: Every 1 real second = (1 * workers) collective seconds
+        const workerMultiplier = Math.max(1, sortedWorkers.length);
+        const collectiveMs = msSinceCheckpoint * workerMultiplier;
+        
+        const totalMs = bankedMs + collectiveMs;
+        setSecondsElapsed(totalMs / 1000);
+      }, 50);
+    }
+    return () => clearInterval(interval);
+  }, [globalStartTime, bankedMs, sortedWorkers.length]);
 
 // ADDS THE AMOUNT OF BLOCKS REVEALED TO SERVER
 // --------------------------------------------------------------- //
@@ -199,6 +191,25 @@ useEffect(() => {
   }, [user, authLoading, router]);
 // ------------------------------------------------------------------ //
 
+useEffect(() => {
+    const roomRef = doc(db, "rooms", "global-room");
+    const unsubscribe = onSnapshot(roomRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setDbShuffledIndices(data.shuffledIndices || []);
+        setRevealedCount(data.revealedCount || 0);
+        setBankedMs(data.accumulatedMs || 0);
+        if (data.lastStartTime) {
+            setGlobalStartTime(data.lastStartTime.toDate().getTime());
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // checks what layer we are currently on. example of 5x5 grid, once it reaches 25 blocks, that means the first layer is completed and we switch levels
+  const currentLayerIndex = Math.min(Math.floor(revealedCount / BLOCKS_PER_LAYER), TOTAL_LAYERS - 1);
+
 // If any of these are loading, then we just dispplay entering room
   if (authLoading || dataLoading || !studyImage) {
     return (
@@ -208,11 +219,12 @@ useEffect(() => {
     );
   }
 
+
   // Figures out how many blocks the avatar should have drawn at a certain given time. 
-  let targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_SESSION_BLOCKS);
+let targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_SESSION_BLOCKS);
 
   // Starts the avatar right when the timer starts. 
-  if (isActive || secondsElapsed > 0) {
+  if (secondsElapsed > 0) {
   targetBlocksCount = Math.min(targetBlocksCount + 1, TOTAL_SESSION_BLOCKS);
 }
   
@@ -222,9 +234,6 @@ useEffect(() => {
 // --------------------------------------------------------------- //
 // checks end state 
   const isSessionComplete = revealedCount >= TOTAL_SESSION_BLOCKS;
-
-  // checks what layer we are currently on. example of 5x5 grid, once it reaches 25 blocks, that means the first layer is completed and we switch levels
-  const currentLayerIndex = Math.min(Math.floor(revealedCount / BLOCKS_PER_LAYER), TOTAL_LAYERS - 1);
 
   // the level underneath thats getting drawn ontop of, if the session is complete, then show level 7 as the base.  
   const baseLevel = isSessionComplete ? 7 : (currentLayerIndex + 1) as any;
@@ -238,50 +247,57 @@ useEffect(() => {
   const maskProgress = (blocksRevealedInCurrentLayer / BLOCKS_PER_LAYER) * 100;
   // --------------------------------------------------------------- //
 
+  console.log(dbShuffledIndices)
+
   return (
     <main className="min-h-screen bg-paper flex flex-col items-center justify-center">
       <div className="relative flex flex-col items-center pb-40">
         
-        {/* THE CANVAS */}
         <div className="w-[400px] h-[400px] relative shadow-2xl bg-white rounded-2xl border-4 border-neutral-800 overflow-hidden">
           <div className="absolute inset-0 z-0">
             <Level imageSrc={studyImage} level={baseLevel} />
           </div>
           <div className="absolute inset-0 z-10">
             <GridRevealMask 
-              progress={maskProgress} 
-              gridSize={GRID_SIZE}
-              shuffledIndicesOverride={shuffledIndices} 
-            >
-              <Level imageSrc={studyImage} level={topLevel} />
+                revealedCount={revealedCount} 
+                fullShuffledIndices={dbShuffledIndices}
+                gridSize={GRID_SIZE}
+                currentLayerIndex={currentLayerIndex}
+                >
+                <Level imageSrc={studyImage} level={topLevel} />
             </GridRevealMask>
           </div>
         </div>
 
-        {/* THE STOPWATCH BOX */}
         <Stopwatch 
-          isActive={isActive} 
-          secondsElapsed={secondsElapsed} 
-          onToggle={() => setIsActive(!isActive)} 
-        />
+  secondsElapsed={secondsElapsed} 
+  workerCount={sortedWorkers.length} 
+/>
 
-        {/* RENDERING ALL COLLABORATORS */}
-        {collaborators.map((player, index) => (
-          <Avatar 
-            key={player.id}
-            avatarSrc={player.avatar}
-            userName={player.username}
-            targetBlocksCount={targetBlocksCount}
-            shuffledIndices={shuffledIndices}
-            gridSize={GRID_SIZE}
-            // makes sure they dont stack up
-            xOffset={index * 60} 
-            onBlockComplete={player.id === user?.uid ? handleBlockComplete : undefined}
-          />
-        ))}
+        {/* RENDERING AVATARS */}
+{dbShuffledIndices.length > 0 ? (
+  sortedWorkers.map((player, index) => (
+    <Avatar 
+      key={player.id}
+      myIndex={index}
+      totalWorkers={sortedWorkers.length}
+      revealedCount={revealedCount}
+      userName={player.username}
+      avatarSrc={player.avatar}
+      targetBlocksCount={targetBlocksCount}
+      shuffledIndices={dbShuffledIndices} // Now guaranteed to have data
+      gridSize={GRID_SIZE}
+      onBlockComplete={handleBlockComplete}
+    />
+  ))
+) : (
+  // Optional: show a small loading indicator where the avatars will be
+  <div className="absolute bottom-20 text-[10px] text-neutral-400 animate-pulse uppercase tracking-widest">
+    Connecting to room...
+  </div>
+)}
 
         <Desk topPosition={600} />
-
       </div>
     </main>
   );

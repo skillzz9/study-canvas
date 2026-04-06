@@ -3,42 +3,44 @@
 import React, { useMemo } from "react";
 
 interface GridRevealMaskProps {
-  progress: number; 
+  revealedCount: number;      // Absolute count from Firestore (e.g., 5)
+  fullShuffledIndices: number[]; // The full list of 24 indices
+  gridSize: number; 
+  currentLayerIndex: number;  // Which layer we are currently drawing (0-5)
   children: React.ReactNode;
-  gridSize?: number; 
-  shuffledIndicesOverride?: number[]; 
 }
 
 export default function GridRevealMask({ 
-  progress, 
-  children, 
-  gridSize = 20, 
-  shuffledIndicesOverride 
+  revealedCount, 
+  fullShuffledIndices,
+  gridSize, 
+  currentLayerIndex,
+  children 
 }: GridRevealMaskProps) {
-  const TOTAL_BLOCKS = gridSize * gridSize;
+  const BLOCKS_PER_LAYER = gridSize * gridSize;
 
-  // Use the master list from the parent or fall back to a local one
-  const shuffledIndices = useMemo(() => {
-    if (shuffledIndicesOverride) return shuffledIndicesOverride;
-    
-    const indices = Array.from({ length: TOTAL_BLOCKS }, (_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    return indices;
-  }, [TOTAL_BLOCKS, shuffledIndicesOverride]);
+  // 1. Figure out which blocks in the master list belong to THIS specific layer
+  // For Layer 0: indices 0-3. For Layer 1: indices 4-7.
+  const layerStart = currentLayerIndex * BLOCKS_PER_LAYER;
+  const layerEnd = layerStart + BLOCKS_PER_LAYER;
 
-  // If progress is 0, show nothing
-  if (progress <= 0) return <div className="hidden" />;
+  // 2. Determine which blocks are "Visible"
+  // We only show blocks that are:
+  // a) Part of this layer's window in the master list
+  // b) Less than the global revealedCount
+  const visibleIndices = useMemo(() => {
+    return fullShuffledIndices
+      .slice(layerStart, layerEnd) // Get the 4 blocks for this layer
+      .filter((_, index) => (layerStart + index) < revealedCount); // Only if they are "done"
+  }, [fullShuffledIndices, revealedCount, layerStart, layerEnd]);
+
+  // If no blocks are revealed in this layer yet, hide the level
+  if (visibleIndices.length === 0) return null;
   
-  // If progress is 100, show the whole level
-  if (progress >= 100) return <div className="absolute inset-0 z-10 w-full h-full">{children}</div>;
-
-  const blocksToReveal = Math.floor((progress / 100) * TOTAL_BLOCKS);
-  const visibleIndices = shuffledIndices.slice(0, blocksToReveal);
-
-  if (visibleIndices.length === 0) return <div className="hidden" />;
+  // If all 4 blocks are done, show the full level (skip the SVG mask math)
+  if (visibleIndices.length === BLOCKS_PER_LAYER) {
+    return <div className="absolute inset-0 z-10 w-full h-full">{children}</div>;
+  }
 
   const maskImages: string[] = [];
   const maskSizes: string[] = [];
@@ -52,18 +54,22 @@ export default function GridRevealMask({
     return (abs / (100 - size)) * 100;
   };
 
-  for (let index of visibleIndices) {
+  for (let rawIndex of visibleIndices) {
+    // THE KEY FIX: Use Modulo to map the master index (e.g., 23) 
+    // to a 2x2 coordinate (0-3)
+    const index = rawIndex % BLOCKS_PER_LAYER;
+
     const col = index % gridSize;
     const row = Math.floor(index / gridSize);
     const seed = index + 1;
 
-    // Neighbor check for blob merging
-    const hasTop = row === 0 || visibleIndices.includes(index - gridSize);
-    const hasBottom = row === gridSize - 1 || visibleIndices.includes(index + gridSize);
-    const hasLeft = col === 0 || visibleIndices.includes(index - 1);
-    const hasRight = col === gridSize - 1 || visibleIndices.includes(index + 1);
+    // Neighbor check (Logic remains same, but uses rawIndex for includes check)
+    const hasTop = row === 0 || visibleIndices.includes(rawIndex - gridSize);
+    const hasBottom = row === gridSize - 1 || visibleIndices.includes(rawIndex + gridSize);
+    const hasLeft = col === 0 || visibleIndices.includes(rawIndex - 1);
+    const hasRight = col === gridSize - 1 || visibleIndices.includes(rawIndex + 1);
 
-    // Corner pinning for organic shapes
+    // SVG Path Generation (Organic shapes logic remains the same)
     const tlX = hasLeft ? -1 : (hasTop ? 0 : 12 + (seed * 7) % 8);
     const tlY = hasTop ? -1 : (hasLeft ? 0 : 12 + (seed * 11) % 8);
     const trX = hasRight ? 101 : (hasTop ? 100 : 88 - (seed * 13) % 8);

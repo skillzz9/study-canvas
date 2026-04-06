@@ -10,8 +10,8 @@ import {
 
 /**
  * Creates or joins the global room.
- * Banks the current stopwatch progress before changing the avatar count
- * to ensure millisecond accuracy across different speeds.
+ * Banks the current stopwatch progress multiplied by the current number of workers
+ * before changing the avatar count to ensure "Collective Study" accuracy.
  */
 export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number) => {
   const roomRef = doc(db, "rooms", "global-room");
@@ -19,36 +19,59 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number) =
   return await runTransaction(db, async (transaction) => {
     const roomSnap = await transaction.get(roomRef);
     
-    // if the room doesnt exist, then crate a new one. 
+    // 1. If the room doesn't exist, create it from scratch
     if (!roomSnap.exists()) {
+      // Generate the master job list once so every worker sees the same blocks
+    const TOTAL_LAYERS = 6;
+    const BLOCKS_PER_LAYER = 4;
+    const indices = [];
+
+    for (let i = 0; i < TOTAL_LAYERS; i++) {
+    // 1. Generate the 4 specific IDs for this layer (e.g., 0-3, 4-7, 8-11...)
+    const start = i * BLOCKS_PER_LAYER;
+    const layerJobIds = Array.from({ length: BLOCKS_PER_LAYER }, (_, j) => start + j);
+
+    // 2. Shuffle ONLY these 4 numbers (Fisher-Yates)
+    for (let k = layerJobIds.length - 1; k > 0; k--) {
+      const r = Math.floor(Math.random() * (k + 1));
+      [layerJobIds[k], layerJobIds[r]] = [layerJobIds[r], layerJobIds[k]];
+    }
+
+  // 3. Push this completed "Layer" into our master list
+  indices.push(...layerJobIds);
+}
+
       transaction.set(roomRef, {
         status: "active",
         numOfAvatars: 1,
         revealedCount: 0,
         totalNumberOfBlocks: totalBlocks,
+        shuffledIndices: indices, // The master list for the room
         accumulatedMs: 0,
         lastStartTime: serverTimestamp(),
         createdBy: uid
       });
       return "created";
-    // if the room exists, we join the existing one
+
+    // 2. If the room exists, bank existing progress and join
     } else {
       const roomData = roomSnap.data();
-      // checking if the room was idle before joining 
       const wasIdle = roomData.status === "idle";
 
-      // when you join, it becomes active, we increment the amount of avatars and we see the last start time to be current time. 
       const updateData: any = {
         status: "active",
         numOfAvatars: increment(1),
         lastStartTime: serverTimestamp(),
       };
 
-      if (!wasIdle) {
+      if (!wasIdle && roomData.lastStartTime) {
         const now = Date.now();
         const lastStart = roomData.lastStartTime.toDate().getTime();
         const msSinceLastChange = now - lastStart;
-        updateData.accumulatedMs = (roomData.accumulatedMs || 0) + msSinceLastChange;
+
+        // MULTIPLIER: Multiply real time by the people who were already working
+        const collectiveMs = msSinceLastChange * (roomData.numOfAvatars || 1);
+        updateData.accumulatedMs = (roomData.accumulatedMs || 0) + collectiveMs;
       }
 
       transaction.update(roomRef, updateData);
@@ -59,15 +82,13 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number) =
 
 /**
  * Handles a user leaving. 
- * Banks the time and sets room to idle if it's the last person.
- * However, does not handle if someone quits the tab or something like that, 
- * which is fine for MVP 
+ * Banks the multiplied "Collective Time" before the avatar count drops.
  */
 export const leaveGlobalRoom = async (uid: string) => {
   const roomRef = doc(db, "rooms", "global-room");
   const presenceRef = doc(db, "rooms", "global-room", "presence", uid);
 
-  // Remove individual presence immediately
+  // Remove individual presence immediately so they disappear from UI
   await deleteDoc(presenceRef);
 
   await runTransaction(db, async (transaction) => {
@@ -75,15 +96,17 @@ export const leaveGlobalRoom = async (uid: string) => {
     if (!roomSnap.exists()) return;
     const roomData = roomSnap.data();
 
-    // Bank work done before the speed drops or timer freezes
     const now = Date.now();
-    const lastStart = roomData.lastStartTime.toDate().getTime();
+    const lastStart = roomData.lastStartTime?.toDate().getTime() || now;
     const msSinceLastChange = now - lastStart;
 
+    // MULTIPLIER: Multiply real time by current count BEFORE subtracting this user
+    const collectiveMs = msSinceLastChange * (roomData.numOfAvatars || 1);
+    
     const newCount = Math.max(0, roomData.numOfAvatars - 1);
 
     transaction.update(roomRef, {
-      accumulatedMs: (roomData.accumulatedMs || 0) + msSinceLastChange,
+      accumulatedMs: (roomData.accumulatedMs || 0) + collectiveMs,
       lastStartTime: serverTimestamp(),
       numOfAvatars: newCount,
       // If 0 avatars are left, the room is idle and time is frozen
@@ -94,7 +117,6 @@ export const leaveGlobalRoom = async (uid: string) => {
 
 /**
  * Updates the user's presence so others can see their avatar.
- * This is handled when they join
  */
 export const updatePresence = async (user: any, userData: any) => {
   const presenceRef = doc(db, "rooms", "global-room", "presence", user.uid);
