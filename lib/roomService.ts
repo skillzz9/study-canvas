@@ -13,7 +13,7 @@ import {
  * Banks the current stopwatch progress multiplied by the current number of workers
  * before changing the avatar count to ensure "Collective Study" accuracy.
  */
-export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number) => {
+export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number, totalMinutes: number) => {
   const roomRef = doc(db, "rooms", "global-room");
 
   return await runTransaction(db, async (transaction) => {
@@ -46,8 +46,8 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number) =
         numOfAvatars: 1,
         revealedCount: 0,
         totalNumberOfBlocks: totalBlocks,
-        totalMinutes: 6, // this is hardcoded need to change this so it actually takes the value from the database that the user initially put  
-        shuffledIndices: indices, // The master list for the room
+        totalMinutes: totalMinutes, 
+        shuffledIndices: indices,
         accumulatedMs: 0,
         lastStartTime: serverTimestamp(),
         createdBy: uid

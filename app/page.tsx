@@ -28,6 +28,8 @@ export default function Home() {
   const [hours, setHours] = useState<number>(1);
   // The minutes we set as input for the study room 
   const [minutes, setMinutes] = useState<number>(0);
+  const [totalMinutes, setTotalMinutes] = useState<number>(0);
+
   // To fix hydration mismatch error when client / server look different
   const [mounted, setMounted] = useState(false);
   // checks if there is a current room in progress or not (only for the button text)
@@ -107,12 +109,15 @@ useEffect(() => {
       try {
         // HARD CODED (NEED TO KEEP AN EYE ON THIS IF CHANGING THE GRID)
         const TOTAL_BLOCKS = 24; 
+        const calculatedTotalMinutes = (hours * 60) + minutes;
         // setting the image to the image 
-        localStorage.setItem("studyImage", image);
-        localStorage.setItem("studyTime", ((hours * 60) + minutes).toString());
+      setTotalMinutes(calculatedTotalMinutes);
+      localStorage.setItem("studyImage", image);
+      localStorage.setItem("studyTime", calculatedTotalMinutes.toString());
+
         // OUTSOURCING LOGIC TO roomService.ts
         // -------------------------------------------------//
-        await joinOrCreateGlobalRoom(user.uid, TOTAL_BLOCKS);
+        await joinOrCreateGlobalRoom(user.uid, TOTAL_BLOCKS, calculatedTotalMinutes);
         // ------------------------------------------------- //
         router.push("/studyroom"); // go to study room
         // error handling 
