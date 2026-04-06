@@ -46,6 +46,7 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number) =
         numOfAvatars: 1,
         revealedCount: 0,
         totalNumberOfBlocks: totalBlocks,
+        totalMinutes: 6, // this is hardcoded need to change this so it actually takes the value from the database that the user initially put  
         shuffledIndices: indices, // The master list for the room
         accumulatedMs: 0,
         lastStartTime: serverTimestamp(),

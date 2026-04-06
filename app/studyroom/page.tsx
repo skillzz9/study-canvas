@@ -73,6 +73,7 @@ useEffect(() => {
       const data = snapshot.data();
       setRevealedCount(data.revealedCount || 0); // syncs how many squares have been revealed
       setBankedMs(data.accumulatedMs || 0); // syncs the stopwatch
+      setTotalMinutes(data.totalMinutes);
       
       if (data.lastStartTime) {
         setGlobalStartTime(data.lastStartTime.toDate().getTime());
