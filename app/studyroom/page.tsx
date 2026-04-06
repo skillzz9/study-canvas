@@ -6,9 +6,17 @@ import GridRevealMask from "@/components/GridRevealMask";
 import Avatar from "@/components/Avatar";
 import Stopwatch from "@/components/Stopwatch";
 import Desk from "@/components/Desk";
+import { useAuth } from "@/context/AuthContext";
+import { getUserDocument } from "@/lib/userService";
+import { UserProfile } from "@/types";
 
 export default function StudyRoom() {
   const router = useRouter();
+
+  const { user, loading: authLoading } = useAuth();
+  const [userData, setUserData] = useState<UserProfile | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+
   // Holds the string of the photo that is uploaded.
   const [studyImage, setStudyImage] = useState<string | null>(null);
 
@@ -96,8 +104,35 @@ useEffect(() => {
 
   // --------------------------------------------------------------- //
 
-  // Error handling to not crash the entire site if the study image hasnt loaded yet
-  if (!studyImage) return null;
+// GETTING USER DATA FOR AVATAR
+useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        router.push("/login");
+      } else {
+        const fetchUserData = async () => {
+          try {
+            const profile = await getUserDocument(user.uid);
+            setUserData(profile);
+          } catch (error) {
+            console.error("Failed to load profile:", error);
+          } finally {
+            setDataLoading(false);
+          }
+        };
+        fetchUserData();
+      }
+    }
+  }, [user, authLoading, router]);
+
+  // MOVED THIS BELOW ALL HOOKS TO FIX THE "CHANGE IN ORDER OF HOOKS" ERROR
+  if (authLoading || dataLoading || !studyImage) {
+    return (
+      <main className="min-h-screen bg-paper flex items-center justify-center font-space">
+        <div className="font-bold text-xl uppercase tracking-widest animate-pulse">Entering Room...</div>
+      </main>
+    );
+  }
 
   // Figures out how many blocks the avatar should have drawn at a certain given time. 
   let targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_SESSION_BLOCKS);
@@ -156,17 +191,10 @@ useEffect(() => {
           onToggle={() => setIsActive(!isActive)} 
         />
 
-        {/* THE AVATAR */}
-        <Avatar 
-          userName="Hugo"
-          targetBlocksCount={targetBlocksCount}
-          shuffledIndices={shuffledIndices}
-          gridSize={GRID_SIZE}
-          onBlockComplete={() => setRevealedCount(prev => prev + 1)}
-        />
 
                 <Avatar 
-          userName="Hugo"
+                avatarSrc={userData?.avatar || "/avatars/avatar1.webp"}
+          userName={userData?.username || "Hugo"}
           targetBlocksCount={targetBlocksCount}
           shuffledIndices={shuffledIndices}
           gridSize={GRID_SIZE}

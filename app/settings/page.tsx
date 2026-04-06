@@ -57,7 +57,7 @@ export default function SettingsPage() {
   if (loading || !user) return null;
 
   return (
-    <main className="flex h-screen w-full bg-neutral-100 font-space overflow-hidden">
+    <main className="flex h-screen w-full bg-paper font-space overflow-hidden">
       {/* ASYNC ANIMATIONS */}
       <style jsx global>{`
         @keyframes bop {
@@ -113,7 +113,7 @@ export default function SettingsPage() {
       </aside>
 
       {/* RIGHT CONTENT AREA */}
-      <section className="flex-1 overflow-y-auto p-12 bg-white text-neutral-800">
+      <section className="flex-1 overflow-y-auto p-12 bg-paper text-neutral-800">
         
         {activeTab === "user" && (
           <div className="max-w-2xl animate-in fade-in duration-300">

@@ -8,9 +8,11 @@ interface AvatarProps {
   gridSize: number;
   onBlockComplete: () => void;
   userName: string;
+  avatarSrc: string;
 }
 
 export default function Avatar({ 
+  avatarSrc,
   targetBlocksCount, 
   shuffledIndices, 
   gridSize, 
@@ -44,18 +46,26 @@ export default function Avatar({
   };
 
   // --- IDLE ROAMING LOGIC ---
-  useEffect(() => {
+ useEffect(() => {
     let idleInterval: NodeJS.Timeout;
 
     if (!isBusy) {
       idleInterval = setInterval(() => {
         const randomX = 50 + Math.random() * 300; 
-        moveAvatar(randomX, 580);
+        
+        // Use a functional update to avoid pos.x dependency
+        setPos(currentPos => {
+          // Determine flip based on current position vs new random target
+          if (randomX < currentPos.x) setFacingLeft(false);
+          else if (randomX > currentPos.x) setFacingLeft(true);
+          
+          return { x: randomX, y: 580 };
+        });
       }, 4000); 
     }
 
     return () => clearInterval(idleInterval);
-  }, [isBusy, pos.x]);
+  }, [isBusy]);
 
   // --- DRAWING LOOP ---
   useEffect(() => {
@@ -129,7 +139,7 @@ export default function Avatar({
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img 
-          src="/avatar.webp" 
+          src={avatarSrc} 
           alt="Artist" 
           className={`w-12 h-12 object-contain ${
             isBusy && pos.y < 400 ? "animate-bounce" : ""

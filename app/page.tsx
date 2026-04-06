@@ -91,7 +91,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 p-6">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-paper p-6">
       <Link 
         href="/settings"
         className="absolute top-6 left-6 p-3 bg-white border-4 border-neutral-800 rounded-xl shadow-[4px_4px_0px_0px_rgba(61,61,61,1)] hover:shadow-[2px_2px_0px_0px_rgba(61,61,61,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-neutral-800"
