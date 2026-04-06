@@ -164,6 +164,14 @@ useEffect(() => {
           gridSize={GRID_SIZE}
           onBlockComplete={() => setRevealedCount(prev => prev + 1)}
         />
+
+                <Avatar 
+          userName="Hugo"
+          targetBlocksCount={targetBlocksCount}
+          shuffledIndices={shuffledIndices}
+          gridSize={GRID_SIZE}
+          onBlockComplete={() => setRevealedCount(prev => prev + 1)}
+        />
         <Desk topPosition={600} />
 
       </div>
