@@ -19,8 +19,8 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number) =
   return await runTransaction(db, async (transaction) => {
     const roomSnap = await transaction.get(roomRef);
     
+    // if the room doesnt exist, then crate a new one. 
     if (!roomSnap.exists()) {
-      // ONLY create from scratch if the document is totally missing
       transaction.set(roomRef, {
         status: "active",
         numOfAvatars: 1,
@@ -31,17 +31,19 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number) =
         createdBy: uid
       });
       return "created";
+    // if the room exists, we join the existing one
     } else {
       const roomData = roomSnap.data();
+      // checking if the room was idle before joining 
       const wasIdle = roomData.status === "idle";
 
+      // when you join, it becomes active, we increment the amount of avatars and we see the last start time to be current time. 
       const updateData: any = {
         status: "active",
         numOfAvatars: increment(1),
         lastStartTime: serverTimestamp(),
       };
 
-      // Only bank time if the room was already running
       if (!wasIdle) {
         const now = Date.now();
         const lastStart = roomData.lastStartTime.toDate().getTime();
@@ -58,6 +60,8 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number) =
 /**
  * Handles a user leaving. 
  * Banks the time and sets room to idle if it's the last person.
+ * However, does not handle if someone quits the tab or something like that, 
+ * which is fine for MVP 
  */
 export const leaveGlobalRoom = async (uid: string) => {
   const roomRef = doc(db, "rooms", "global-room");
@@ -90,6 +94,7 @@ export const leaveGlobalRoom = async (uid: string) => {
 
 /**
  * Updates the user's presence so others can see their avatar.
+ * This is handled when they join
  */
 export const updatePresence = async (user: any, userData: any) => {
   const presenceRef = doc(db, "rooms", "global-room", "presence", user.uid);

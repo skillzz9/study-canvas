@@ -15,10 +15,14 @@ import { updatePresence, leaveGlobalRoom } from "@/lib/roomService";
 
 export default function StudyRoom() {
   const router = useRouter();
-
+// For security, gathers who is logged in from the auth
   const { user, loading: authLoading } = useAuth();
+  // Gets the actual user data in the firestore. 
   const [userData, setUserData] = useState<UserProfile | null>(null);
+
+    // gives me loading state when things are loading 
   const [dataLoading, setDataLoading] = useState(true);
+
 
   // Holds the string of the photo that is uploaded.
   const [studyImage, setStudyImage] = useState<string | null>(null);
@@ -36,11 +40,17 @@ export default function StudyRoom() {
   // shows how many blocks have been revealed.
   const [revealedCount, setRevealedCount] = useState(0);
 
-  // --- MULTIPLAYER STATES ---
+// FOR MULTIPLAYER TO WORK 
+// --------------------------------------------------------------------- //
+// the array of profile objects (with username and avatar) in the room
   const [collaborators, setCollaborators] = useState<any[]>([]);
+  // number of avatars
   const [numOfAvatars, setNumOfAvatars] = useState(1);
+  // how much seconds have passed SINCE the last time it was set to active. 
   const [bankedMs, setBankedMs] = useState(0);
+  // counts the millsecond the room was most recently became active
   const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
+// --------------------------------------------------------------------- //
 
   // GRID SETTINGS
   // --------------------------------------------------------------- //
@@ -66,26 +76,28 @@ export default function StudyRoom() {
   }, [BLOCKS_PER_LAYER]);
     // --------------------------------------------------------------- //
 
-// 1. SYNC ROOM DATA (Timer, revealedCount, totalBlocks)
+// SYNCING LOGIC FOR WHEN JOINING 
+// --------------------------------------------------------------- //
 useEffect(() => {
   const roomRef = doc(db, "rooms", "global-room");
   const unsubscribe = onSnapshot(roomRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.data();
-      setRevealedCount(data.revealedCount || 0);
-      setNumOfAvatars(data.numOfAvatars || 1);
-      setBankedMs(data.accumulatedMs || 0);
+      setRevealedCount(data.revealedCount || 0); // syncs how many squares have been revealed
+      setNumOfAvatars(data.numOfAvatars || 1); // syncs the number of avatars
+      setBankedMs(data.accumulatedMs || 0); // syncs the stopwatch
       
       if (data.lastStartTime) {
         setGlobalStartTime(data.lastStartTime.toDate().getTime());
-        // FIX: Removed setIsActive(data.status === "active") so it doesn't auto-start
       }
     }
   });
   return () => unsubscribe();
 }, []);
-
-// 2. SYNC PRESENCE (All Avatars)
+// --------------------------------------------------------------- //
+  
+// GETTING ALL THE AVATAR PROFILES STORED LOCALLY 
+// --------------------------------------------------------------- //
 useEffect(() => {
   if (!user || !userData) return;
 
@@ -105,8 +117,8 @@ useEffect(() => {
     unsubscribe();
   };
 }, [user, userData]);
+// --------------------------------------------------------------- //
 
-// 3. MILLISECOND ACCURATE STOPWATCH CALCULATION
 useEffect(() => {
   let interval: NodeJS.Timeout;
   if (isActive && globalStartTime) {
@@ -114,20 +126,21 @@ useEffect(() => {
       const now = Date.now();
       const msSinceCheckpoint = now - globalStartTime;
       const totalMs = bankedMs + msSinceCheckpoint;
-      // Convert to seconds for the display and logic
       setSecondsElapsed(totalMs / 1000);
-    }, 50); // High frequency for millisecond feel
+    }, 50);
   }
   return () => clearInterval(interval);
 }, [isActive, globalStartTime, bankedMs]);
 
-// 4. SYNC BLOCK COMPLETION
+// ADDS THE AMOUNT OF BLOCKS REVEALED TO SERVER
+// --------------------------------------------------------------- //
 const handleBlockComplete = async () => {
   const roomRef = doc(db, "rooms", "global-room");
   await updateDoc(roomRef, {
     revealedCount: revealedCount + 1
   });
 };
+// --------------------------------------------------------------- //
 
 // LOADING IMAGE 
 // ------------------------------------------------------------------- //
@@ -164,6 +177,7 @@ useEffect(() => {
 // ------------------------------------------------------------------- //
 
 // GETTING USER DATA FOR AVATAR
+// ------------------------------------------------------------------ //
 useEffect(() => {
     if (!authLoading) {
       if (!user) {
@@ -183,8 +197,9 @@ useEffect(() => {
       }
     }
   }, [user, authLoading, router]);
+// ------------------------------------------------------------------ //
 
-  // MOVED THIS BELOW ALL HOOKS TO FIX THE "CHANGE IN ORDER OF HOOKS" ERROR
+// If any of these are loading, then we just dispplay entering room
   if (authLoading || dataLoading || !studyImage) {
     return (
       <main className="min-h-screen bg-paper flex items-center justify-center font-space">
@@ -259,8 +274,8 @@ useEffect(() => {
             targetBlocksCount={targetBlocksCount}
             shuffledIndices={shuffledIndices}
             gridSize={GRID_SIZE}
+            // makes sure they dont stack up
             xOffset={index * 60} 
-            // Only the local user triggers the database update
             onBlockComplete={player.id === user?.uid ? handleBlockComplete : undefined}
           />
         ))}

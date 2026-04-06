@@ -14,33 +14,48 @@ import { joinOrCreateGlobalRoom } from "@/lib/roomService";
 export default function Home() {
   const router = useRouter();
   
+  // For security, gathers who is logged in from the auth
   const { user, loading: authLoading } = useAuth();
+  // Gets the actual user data in the firestore. 
   const [userData, setUserData] = useState<UserProfile | null>(null);
+
+    // gives me loading state when things are loading 
   const [dataLoading, setDataLoading] = useState(true);
 
+  // The image that we upload
   const [image, setImage] = useState<string | null>(null);
+  // The hours we set as input for the study room 
   const [hours, setHours] = useState<number>(1);
+  // The minutes we set as input for the study room 
   const [minutes, setMinutes] = useState<number>(0);
+  // To fix hydration mismatch error when client / server look different
   const [mounted, setMounted] = useState(false);
+  // checks if there is a current room in progress or not (only for the button text)
   const [isRoomActive, setIsRoomActive] = useState(false);
+  // this is the loading state for when a user is creating or joining an existing room. 
   const [buttonLoading, setButtonLoading] = useState(false);
 
-  // 1. LISTEN FOR GLOBAL ROOM STATUS
+// CHECKING IF ROOM EXISTS ALREADY (for button) (maybe this can be done better)
+// ---------------------------------------------------------------------- //
 useEffect(() => {
   const roomRef = doc(db, "rooms", "global-room");
   const unsubscribe = onSnapshot(roomRef, (snapshot) => {
-    // If the document exists in Firestore, we treat it as an existing room
+    // set the room to being active if there exists a room
     setIsRoomActive(snapshot.exists()); 
   });
   return () => unsubscribe();
 }, []);
+// ---------------------------------------------------------------------- //
 
+// fixes hydration error 
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem("studyImage");
     if (saved) setImage(saved);
   }, []);
 
+  // CHECKS THE USER AND GETS THE USERDATA
+  // ---------------------------------------------------------------------- //
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
@@ -60,7 +75,10 @@ useEffect(() => {
       }
     }
   }, [user, authLoading, router]);
+// ---------------------------------------------------------------------- //
 
+// HANDLING SAVING AN IMAGE WHEN UPLOADING
+// ---------------------------------------------------------------------- //
   const handleImageSave = (base64String: string) => {
     setImage(base64String);
     try {
@@ -70,24 +88,34 @@ useEffect(() => {
       setImage(null);
     }
   };
+// ---------------------------------------------------------------------- //
 
+  // clearing an image if the delete button is pressed
+  // ---------------------------------------------------------------------- //
   const clearImage = () => {
     setImage(null);
     localStorage.removeItem("studyImage");
   };
+// ---------------------------------------------------------------------- //
 
+// HANDLES ENTERING THE ROOM LOGIC 
+// ---------------------------------------------------------------------- //
   const handleEnterStudyRoom = async () => {
+    // if image and user exsits, then we set the button to loading state
     if (image && user) {
-      setButtonLoading(true);
+      setButtonLoading(true); // this makes the button say "loading"
       try {
-        // Constant for your current grid setup (2x2 grid * 6 layers)
+        // HARD CODED (NEED TO KEEP AN EYE ON THIS IF CHANGING THE GRID)
         const TOTAL_BLOCKS = 24; 
-        
+        // setting the image to the image 
         localStorage.setItem("studyImage", image);
         localStorage.setItem("studyTime", ((hours * 60) + minutes).toString());
-
+        // OUTSOURCING LOGIC TO roomService.ts
+        // -------------------------------------------------//
         await joinOrCreateGlobalRoom(user.uid, TOTAL_BLOCKS);
-        router.push("/studyroom");
+        // ------------------------------------------------- //
+        router.push("/studyroom"); // go to study room
+        // error handling 
       } catch (error) {
         console.error("Error entering room:", error);
         alert("Failed to join the room. Please try again.");
@@ -97,8 +125,10 @@ useEffect(() => {
     }
   };
 
+  // error handling
   if (!mounted) return null;
 
+  // display loading screen if any of these things are true
   if (authLoading || dataLoading || !user) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 p-6 font-space">
@@ -111,6 +141,7 @@ useEffect(() => {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-paper p-6 font-space">
+      
       <Link 
         href="/settings"
         className="absolute top-6 left-6 p-3 bg-white border-4 border-neutral-800 rounded-xl shadow-[4px_4px_0px_0px_rgba(61,61,61,1)] hover:shadow-[2px_2px_0px_0px_rgba(61,61,61,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-neutral-800"
