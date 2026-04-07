@@ -13,7 +13,8 @@ import {
  * Banks the current stopwatch progress multiplied by the current number of workers
  * before changing the avatar count to ensure "Collective Study" accuracy.
  */
-export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number, totalMinutes: number) => {
+export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number, totalMinutes: number, gridSize: number, 
+  totalLayers: number) => {
   const roomRef = doc(db, "rooms", "global-room");
 
   return await runTransaction(db, async (transaction) => {
@@ -22,11 +23,10 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number, t
     // 1. If the room doesn't exist, create it from scratch
     if (!roomSnap.exists()) {
       // Generate the master job list once so every worker sees the same blocks
-    const TOTAL_LAYERS = 6;
-    const BLOCKS_PER_LAYER = 4;
+    const BLOCKS_PER_LAYER = gridSize * gridSize;
     const indices = [];
 
-    for (let i = 0; i < TOTAL_LAYERS; i++) {
+    for (let i = 0; i < totalLayers; i++) {
     // 1. Generate the 4 specific IDs for this layer (e.g., 0-3, 4-7, 8-11...)
     const start = i * BLOCKS_PER_LAYER;
     const layerJobIds = Array.from({ length: BLOCKS_PER_LAYER }, (_, j) => start + j);
@@ -42,6 +42,8 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number, t
 }
 
       transaction.set(roomRef, {
+        gridSize: gridSize,
+        totalLayers: totalLayers,
         status: "active",
         numOfAvatars: 1,
         revealedCount: 0,

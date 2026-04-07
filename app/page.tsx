@@ -12,6 +12,9 @@ import { db } from "@/lib/firebase";
 import { joinOrCreateGlobalRoom } from "@/lib/roomService";
 
 export default function Home() {
+const GRID_SIZE = 3; // Change this to 2, 3, 4, etc.
+const TOTAL_LAYERS = 6;
+const TOTAL_BLOCKS = (GRID_SIZE * GRID_SIZE) * TOTAL_LAYERS;
   const router = useRouter();
   
   // For security, gathers who is logged in from the auth
@@ -107,8 +110,6 @@ useEffect(() => {
     if (image && user) {
       setButtonLoading(true); // this makes the button say "loading"
       try {
-        // HARD CODED (NEED TO KEEP AN EYE ON THIS IF CHANGING THE GRID)
-        const TOTAL_BLOCKS = 24; 
         const calculatedTotalMinutes = (hours * 60) + minutes;
         // setting the image to the image 
       setTotalMinutes(calculatedTotalMinutes);
@@ -117,7 +118,13 @@ useEffect(() => {
 
         // OUTSOURCING LOGIC TO roomService.ts
         // -------------------------------------------------//
-        await joinOrCreateGlobalRoom(user.uid, TOTAL_BLOCKS, calculatedTotalMinutes);
+        await joinOrCreateGlobalRoom(
+        user.uid, 
+        TOTAL_BLOCKS, 
+        calculatedTotalMinutes, 
+        GRID_SIZE, 
+        TOTAL_LAYERS
+      );
         // ------------------------------------------------- //
         router.push("/studyroom"); // go to study room
         // error handling 

@@ -25,18 +25,16 @@ export default function StudyRoom() {
     // gives me loading state when things are loading 
   const [dataLoading, setDataLoading] = useState(true);
 
-
   // Holds the string of the photo that is uploaded.
   const [studyImage, setStudyImage] = useState<string | null>(null);
 
   // Holds the value of the time set in the beggining. 
-  const [totalMinutes, setTotalMinutes] = useState<number>(30); // Set to 30 for testing
+  const [totalMinutes, setTotalMinutes] = useState<number>(30); // Default, will sync from DB
   
   // finds out how much seconds has elapsed
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const minutes = secondsElapsed / 60;
 
-  
   // shows how many blocks have been revealed.
   const [revealedCount, setRevealedCount] = useState(0);
 
@@ -44,19 +42,21 @@ export default function StudyRoom() {
 // --------------------------------------------------------------------- //
 // the array of profile objects (with username and avatar) in the room
   const [collaborators, setCollaborators] = useState<any[]>([]);
-  // number of avatars
   // how much seconds have passed SINCE the last time it was set to active. 
   const [bankedMs, setBankedMs] = useState(0);
   // counts the millsecond the room was most recently became active
   const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
 // --------------------------------------------------------------------- //
-  // GRID SETTINGS
+
+  // SYNCED GRID SETTINGS (Replaces hardcoded constants)
   // --------------------------------------------------------------- //
-  const GRID_SIZE = 2;
-  const BLOCKS_PER_LAYER = GRID_SIZE * GRID_SIZE;
-  const TOTAL_LAYERS = 6;
-  const TOTAL_SESSION_BLOCKS = BLOCKS_PER_LAYER * TOTAL_LAYERS;
-    // --------------------------------------------------------------- //
+  const [gridSize, setGridSize] = useState(2); 
+  const [totalLayers, setTotalLayers] = useState(6);
+
+  // Derived settings based on synced database values
+  const blocksPerLayer = gridSize * gridSize;
+  const totalSessionBlocks = blocksPerLayer * totalLayers;
+  // --------------------------------------------------------------- //
 
   // getting the same order of workers for everyone (sorting them)
 const sortedWorkers = useMemo(() => {
@@ -64,16 +64,23 @@ const sortedWorkers = useMemo(() => {
   }, [collaborators]);
 
 
-// SYNCING LOGIC FOR WHEN JOINING 
+// CONSOLIDATED SYNCING LOGIC
 // --------------------------------------------------------------- //
 useEffect(() => {
   const roomRef = doc(db, "rooms", "global-room");
   const unsubscribe = onSnapshot(roomRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.data();
-      setRevealedCount(data.revealedCount || 0); // syncs how many squares have been revealed
-      setBankedMs(data.accumulatedMs || 0); // syncs the stopwatch
-      setTotalMinutes(data.totalMinutes);
+      
+      // SYNC ALL SETTINGS FROM DB
+      setRevealedCount(data.revealedCount || 0); 
+      setBankedMs(data.accumulatedMs || 0); 
+      setTotalMinutes(data.totalMinutes || 30);
+      setDbShuffledIndices(data.shuffledIndices || []);
+      
+      // SYNC DYNAMIC GRID SETTINGS
+      if (data.gridSize) setGridSize(data.gridSize);
+      if (data.totalLayers) setTotalLayers(data.totalLayers);
       
       if (data.lastStartTime) {
         setGlobalStartTime(data.lastStartTime.toDate().getTime());
@@ -138,18 +145,12 @@ const handleBlockComplete = async () => {
 // LOADING IMAGE 
 // ------------------------------------------------------------------- //
 useEffect(() => {
-  // gathering image from local storage 
-    // const savedImage = localStorage.getItem("studyImage"); 
     const savedImage = "test.png"
-
-    // gathering time from local storage 
     const savedTime = localStorage.getItem("studyTime"); 
 
-    // error handling 
     if (!savedImage) {
       router.push("/"); 
     } else {
-      // convert image to blob URL, makes it load faster.
       fetch(savedImage)
         .then((res) => res.blob())
         .then((blob) => {
@@ -160,7 +161,6 @@ useEffect(() => {
       if (savedTime) setTotalMinutes(Number(savedTime));
     }
     
-    // Clean up the Blob URL when the user leaves the room to free up memory
     return () => {
       if (studyImage && studyImage.startsWith("blob:")) {
         URL.revokeObjectURL(studyImage);
@@ -192,24 +192,8 @@ useEffect(() => {
   }, [user, authLoading, router]);
 // ------------------------------------------------------------------ //
 
-useEffect(() => {
-    const roomRef = doc(db, "rooms", "global-room");
-    const unsubscribe = onSnapshot(roomRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setDbShuffledIndices(data.shuffledIndices || []);
-        setRevealedCount(data.revealedCount || 0);
-        setBankedMs(data.accumulatedMs || 0);
-        if (data.lastStartTime) {
-            setGlobalStartTime(data.lastStartTime.toDate().getTime());
-        }
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // checks what layer we are currently on. example of 5x5 grid, once it reaches 25 blocks, that means the first layer is completed and we switch levels
-  const currentLayerIndex = Math.min(Math.floor(revealedCount / BLOCKS_PER_LAYER), TOTAL_LAYERS - 1);
+  // Math for progress based on dynamic database settings
+  const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
 
 // If any of these are loading, then we just dispplay entering room
   if (authLoading || dataLoading || !studyImage) {
@@ -220,35 +204,23 @@ useEffect(() => {
     );
   }
 
-
   // Figures out how many blocks the avatar should have drawn at a certain given time. 
-let targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_SESSION_BLOCKS);
+let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks);
 
   // Starts the avatar right when the timer starts. 
   if (secondsElapsed > 0) {
-  targetBlocksCount = Math.min(targetBlocksCount + 1, TOTAL_SESSION_BLOCKS);
+  targetBlocksCount = Math.min(targetBlocksCount + 1, totalSessionBlocks);
 }
   
-
-
 // THIS CHANGES THE LEVELS DEPENDING ON THE TIME
 // --------------------------------------------------------------- //
 // checks end state 
-  const isSessionComplete = revealedCount >= TOTAL_SESSION_BLOCKS;
+  const isSessionComplete = revealedCount >= totalSessionBlocks;
 
-  // the level underneath thats getting drawn ontop of, if the session is complete, then show level 7 as the base.  
+  // the level underneath thats getting drawn ontop of
   const baseLevel = isSessionComplete ? 7 : (currentLayerIndex + 1) as any;
   // the level above thats getting drawn
   const topLevel = (currentLayerIndex + 2) as any;
-
-  // Shows how many blocks have been revelaed for that layer 
-  const blocksRevealedInCurrentLayer = revealedCount % BLOCKS_PER_LAYER;
-
-  // Represents the progress in terms of a percentage.
-  const maskProgress = (blocksRevealedInCurrentLayer / BLOCKS_PER_LAYER) * 100;
-  // --------------------------------------------------------------- //
-
-  console.log(dbShuffledIndices)
 
   return (
     <main className="min-h-screen bg-paper flex flex-col items-center justify-center">
@@ -262,7 +234,7 @@ let targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_SESSION_BLOC
             <GridRevealMask 
                 revealedCount={revealedCount} 
                 fullShuffledIndices={dbShuffledIndices}
-                gridSize={GRID_SIZE}
+                gridSize={gridSize}
                 currentLayerIndex={currentLayerIndex}
                 >
                 <Level imageSrc={studyImage} level={topLevel} />
@@ -271,32 +243,31 @@ let targetBlocksCount = Math.floor((minutes / totalMinutes) * TOTAL_SESSION_BLOC
         </div>
 
         <Stopwatch 
-  secondsElapsed={secondsElapsed} 
-  workerCount={sortedWorkers.length} 
-/>
+          secondsElapsed={secondsElapsed} 
+          workerCount={sortedWorkers.length} 
+        />
 
         {/* RENDERING AVATARS */}
-{dbShuffledIndices.length > 0 ? (
-  sortedWorkers.map((player, index) => (
-    <Avatar 
-      key={player.id}
-      myIndex={index}
-      totalWorkers={sortedWorkers.length}
-      revealedCount={revealedCount}
-      userName={player.username}
-      avatarSrc={player.avatar}
-      targetBlocksCount={targetBlocksCount}
-      shuffledIndices={dbShuffledIndices} // Now guaranteed to have data
-      gridSize={GRID_SIZE}
-      onBlockComplete={handleBlockComplete}
-    />
-  ))
-) : (
-  // Optional: show a small loading indicator where the avatars will be
-  <div className="absolute bottom-20 text-[10px] text-neutral-400 animate-pulse uppercase tracking-widest">
-    Connecting to room...
-  </div>
-)}
+        {dbShuffledIndices.length > 0 ? (
+          sortedWorkers.map((player, index) => (
+            <Avatar 
+              key={player.id}
+              myIndex={index}
+              totalWorkers={sortedWorkers.length}
+              revealedCount={revealedCount}
+              userName={player.username}
+              avatarSrc={player.avatar}
+              targetBlocksCount={targetBlocksCount}
+              shuffledIndices={dbShuffledIndices} 
+              gridSize={gridSize}
+              onBlockComplete={handleBlockComplete}
+            />
+          ))
+        ) : (
+          <div className="absolute bottom-20 text-[10px] text-neutral-400 animate-pulse uppercase tracking-widest">
+            Connecting to room...
+          </div>
+        )}
 
         <Desk topPosition={600} />
       </div>
