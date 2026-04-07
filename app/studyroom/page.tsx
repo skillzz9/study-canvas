@@ -42,10 +42,13 @@ export default function StudyRoom() {
 // --------------------------------------------------------------------- //
 // the array of profile objects (with username and avatar) in the room
   const [collaborators, setCollaborators] = useState<any[]>([]);
+  // number of avatars
   // how much seconds have passed SINCE the last time it was set to active. 
   const [bankedMs, setBankedMs] = useState(0);
   // counts the millsecond the room was most recently became active
   const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
+  // syncs if the room is active or idle
+  const [roomStatus, setRoomStatus] = useState("idle");
 // --------------------------------------------------------------------- //
 
   // SYNCED GRID SETTINGS (Replaces hardcoded constants)
@@ -74,9 +77,16 @@ useEffect(() => {
       
       // SYNC ALL SETTINGS FROM DB
       setRevealedCount(data.revealedCount || 0); 
-      setBankedMs(data.accumulatedMs || 0); 
+      
+      // FIX: Capture and set elapsed time immediately from banked data
+      // This ensures that idle rooms show the correct time upon entering
+      const currentBankedMs = data.accumulatedMs || 0;
+      setBankedMs(currentBankedMs); 
+      setSecondsElapsed(currentBankedMs / 1000);
+
       setTotalMinutes(data.totalMinutes || 30);
       setDbShuffledIndices(data.shuffledIndices || []);
+      setRoomStatus(data.status || "idle"); // SYNC STATUS
       
       // SYNC DYNAMIC GRID SETTINGS
       if (data.gridSize) setGridSize(data.gridSize);
@@ -114,9 +124,11 @@ useEffect(() => {
 }, [user, userData]);
 // --------------------------------------------------------------- //
 
+// ADDED ROOMSTATUS CHECK TO INTERVAL
 useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (globalStartTime) {
+    // Only tick the seconds if the room is active and not finished
+    if (globalStartTime && roomStatus === "active" && minutes < totalMinutes) {
       interval = setInterval(() => {
         const now = Date.now();
         const msSinceCheckpoint = now - globalStartTime;
@@ -130,7 +142,7 @@ useEffect(() => {
       }, 50);
     }
     return () => clearInterval(interval);
-  }, [globalStartTime, bankedMs, sortedWorkers.length]);
+  }, [globalStartTime, bankedMs, sortedWorkers.length, roomStatus, minutes, totalMinutes]);
 
 // ADDS THE AMOUNT OF BLOCKS REVEALED TO SERVER
 // --------------------------------------------------------------- //
@@ -151,6 +163,7 @@ useEffect(() => {
     if (!savedImage) {
       router.push("/"); 
     } else {
+      // convert image to blob URL, makes it load faster.
       fetch(savedImage)
         .then((res) => res.blob())
         .then((blob) => {
@@ -161,6 +174,7 @@ useEffect(() => {
       if (savedTime) setTotalMinutes(Number(savedTime));
     }
     
+    // Clean up the Blob URL when the user leaves the room to free up memory
     return () => {
       if (studyImage && studyImage.startsWith("blob:")) {
         URL.revokeObjectURL(studyImage);
@@ -259,6 +273,7 @@ let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks
   workerCount={sortedWorkers.length}
   isSessionComplete={isSessionComplete}
   onFinish={handleFinishSession}
+  roomStatus={roomStatus}
 />
 
         {/* RENDERING AVATARS */}

@@ -5,7 +5,8 @@ import {
   serverTimestamp, 
   increment,
   setDoc,
-  deleteDoc
+  deleteDoc,
+  updateDoc
 } from "firebase/firestore";
 
 /**
@@ -22,64 +23,66 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number, t
     
     // 1. If the room doesn't exist, create it from scratch
     if (!roomSnap.exists()) {
-      // Generate the master job list once so every worker sees the same blocks
-    const BLOCKS_PER_LAYER = gridSize * gridSize;
-    const indices = [];
+      const BLOCKS_PER_LAYER = gridSize * gridSize;
+      const indices = [];
 
-    for (let i = 0; i < totalLayers; i++) {
-    // 1. Generate the 4 specific IDs for this layer (e.g., 0-3, 4-7, 8-11...)
-    const start = i * BLOCKS_PER_LAYER;
-    const layerJobIds = Array.from({ length: BLOCKS_PER_LAYER }, (_, j) => start + j);
+      for (let i = 0; i < totalLayers; i++) {
+        const start = i * BLOCKS_PER_LAYER;
+        const layerJobIds = Array.from({ length: BLOCKS_PER_LAYER }, (_, j) => start + j);
 
-    // 2. Shuffle ONLY these 4 numbers (Fisher-Yates)
-    for (let k = layerJobIds.length - 1; k > 0; k--) {
-      const r = Math.floor(Math.random() * (k + 1));
-      [layerJobIds[k], layerJobIds[r]] = [layerJobIds[r], layerJobIds[k]];
-    }
-
-  // 3. Push this completed "Layer" into our master list
-  indices.push(...layerJobIds);
-}
+        for (let k = layerJobIds.length - 1; k > 0; k--) {
+          const r = Math.floor(Math.random() * (k + 1));
+          [layerJobIds[k], layerJobIds[r]] = [layerJobIds[r], layerJobIds[k]];
+        }
+        indices.push(...layerJobIds);
+      }
 
       transaction.set(roomRef, {
         gridSize: gridSize,
         totalLayers: totalLayers,
-        status: "active",
+        status: "idle", // Start as idle so the first user must click Start
         numOfAvatars: 1,
         revealedCount: 0,
         totalNumberOfBlocks: totalBlocks,
         totalMinutes: totalMinutes, 
         shuffledIndices: indices,
         accumulatedMs: 0,
-        lastStartTime: serverTimestamp(),
+        lastStartTime: null, // No start time until Start is clicked
         createdBy: uid
       });
       return "created";
 
-    // 2. If the room exists, bank existing progress and join
+    // 2. If the room exists, join it
     } else {
       const roomData = roomSnap.data();
-      const wasIdle = roomData.status === "idle";
+      const isActive = roomData.status === "active";
 
       const updateData: any = {
-        status: "active",
         numOfAvatars: increment(1),
-        lastStartTime: serverTimestamp(),
       };
 
-      if (!wasIdle && roomData.lastStartTime) {
+      // Only bank time and update lastStartTime if the room is ALREADY active
+      if (isActive && roomData.lastStartTime) {
         const now = Date.now();
         const lastStart = roomData.lastStartTime.toDate().getTime();
         const msSinceLastChange = now - lastStart;
 
-        // MULTIPLIER: Multiply real time by the people who were already working
         const collectiveMs = msSinceLastChange * (roomData.numOfAvatars || 1);
         updateData.accumulatedMs = (roomData.accumulatedMs || 0) + collectiveMs;
+        updateData.lastStartTime = serverTimestamp();
       }
 
       transaction.update(roomRef, updateData);
       return "joined";
     }
+  });
+};
+
+export const startGlobalRoom = async () => {
+  const roomRef = doc(db, "rooms", "global-room");
+  await updateDoc(roomRef, {
+    status: "active",
+    lastStartTime: serverTimestamp()
   });
 };
 
@@ -91,7 +94,6 @@ export const leaveGlobalRoom = async (uid: string) => {
   const roomRef = doc(db, "rooms", "global-room");
   const presenceRef = doc(db, "rooms", "global-room", "presence", uid);
 
-  // Remove individual presence immediately so they disappear from UI
   await deleteDoc(presenceRef);
 
   await runTransaction(db, async (transaction) => {
@@ -99,21 +101,22 @@ export const leaveGlobalRoom = async (uid: string) => {
     if (!roomSnap.exists()) return;
     const roomData = roomSnap.data();
 
+    const isActive = roomData.status === "active";
     const now = Date.now();
     const lastStart = roomData.lastStartTime?.toDate().getTime() || now;
-    const msSinceLastChange = now - lastStart;
-
-    // MULTIPLIER: Multiply real time by current count BEFORE subtracting this user
+    
+    // Only calculate elapsed time if the room was active
+    const msSinceLastChange = isActive ? (now - lastStart) : 0;
     const collectiveMs = msSinceLastChange * (roomData.numOfAvatars || 1);
     
     const newCount = Math.max(0, roomData.numOfAvatars - 1);
 
     transaction.update(roomRef, {
       accumulatedMs: (roomData.accumulatedMs || 0) + collectiveMs,
-      lastStartTime: serverTimestamp(),
       numOfAvatars: newCount,
-      // If 0 avatars are left, the room is idle and time is frozen
-      status: newCount === 0 ? "idle" : "active"
+      // If 0 avatars are left, the room resets to idle. Otherwise keeps current status.
+      status: newCount === 0 ? "idle" : roomData.status,
+      lastStartTime: newCount === 0 ? null : (isActive ? serverTimestamp() : null)
     });
   });
 };

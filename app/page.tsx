@@ -12,9 +12,15 @@ import { db } from "@/lib/firebase";
 import { joinOrCreateGlobalRoom } from "@/lib/roomService";
 
 export default function Home() {
-const GRID_SIZE = 2; // Change this to 2, 3, 4, etc.
+
+  // GRID SETTINGS
+  // ------------------------------------------------------- //
+const GRID_SIZE = 3; 
 const TOTAL_LAYERS = 6;
 const TOTAL_BLOCKS = (GRID_SIZE * GRID_SIZE) * TOTAL_LAYERS;
+// ------------------------------------------------------- //
+
+
   const router = useRouter();
   
   // For security, gathers who is logged in from the auth
