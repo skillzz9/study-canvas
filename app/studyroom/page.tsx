@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
+import confetti from 'canvas-confetti';
 import { useRouter } from "next/navigation";
 import { doc, onSnapshot, collection, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -67,6 +68,7 @@ const sortedWorkers = useMemo(() => {
   }, [collaborators]);
 
 
+  
 // CONSOLIDATED SYNCING LOGIC
 // --------------------------------------------------------------- //
 useEffect(() => {
@@ -205,7 +207,36 @@ useEffect(() => {
     }
   }, [user, authLoading, router]);
 // ------------------------------------------------------------------ //
+  const isSessionComplete = minutes >= totalMinutes;
+useEffect(() => {
+  if (isSessionComplete) {
+    // Fire a big burst immediately
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#22c55e', '#ef4444', '#eab308', '#3b82f6'] // Match your Neubrutalist colors
+    });
 
+    // Fire side cannons every 2 seconds for a "continuous" party
+    const interval = setInterval(() => {
+      confetti({
+        particleCount: 50,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 }
+      });
+      confetti({
+        particleCount: 50,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 }
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }
+}, [isSessionComplete]);
   // Math for progress based on dynamic database settings
   const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
 
@@ -229,7 +260,8 @@ let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks
 // THIS CHANGES THE LEVELS DEPENDING ON THE TIME
 // --------------------------------------------------------------- //
 // checks end state 
-  const isSessionComplete = minutes >= totalMinutes;
+
+  
   // deletes room after finished
   const handleFinishSession = async () => {
   try {
@@ -242,6 +274,7 @@ let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks
     alert("Error ending session. Please try again.");
   }
 };
+
 
   // the level underneath thats getting drawn ontop of
   const baseLevel = isSessionComplete ? 7 : (currentLayerIndex + 1) as any;
