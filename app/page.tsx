@@ -15,7 +15,7 @@ export default function Home() {
 
   // GRID SETTINGS
   // ------------------------------------------------------- //
-const GRID_SIZE = 2; 
+const GRID_SIZE = 4; 
 const TOTAL_LAYERS = 6;
 const TOTAL_BLOCKS = (GRID_SIZE * GRID_SIZE) * TOTAL_LAYERS;
 // ------------------------------------------------------- //

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import DustCloud from "./DustCloud";
 
 interface AvatarProps {
   myIndex: number;
@@ -33,6 +34,7 @@ export default function Avatar({
   const [pos, setPos] = useState({ x: homeX, y: homeY }); 
   const [facingLeft, setFacingLeft] = useState(false);
 
+  const [isPainting, setIsPainting] = useState(false);
   // THE CRITICAL FIX: Math.floor and Modulo based on gridSize
   const getCoords = (globalIndex: number) => {
     // Wrap the 0-23 index back into 0-3 for the 2x2 grid
@@ -72,9 +74,9 @@ export default function Avatar({
     const isJobAvailable = targetBlocksCount > revealedCount;
     const isMyTurn = revealedCount % Math.max(1, totalWorkers) === myIndex;
 
-    // Only start if the list has arrived from the DB
     if (isJobAvailable && isMyTurn && !isBusy && shuffledIndices.length > 0) {
       const runArtistLoop = async () => {
+        // 1. REVEAL PAINTBRUSH
         setIsBusy(true);
 
         const nextGlobalIndex = shuffledIndices[revealedCount];
@@ -85,16 +87,27 @@ export default function Avatar({
         
         const targetCoords = getCoords(nextGlobalIndex);
 
+        // 2. GO TO SQUARE (2 seconds)
         moveAvatar(targetCoords.x, targetCoords.y);
-        await new Promise((res) => setTimeout(res, 5000));
+        await new Promise((res) => setTimeout(res, 2000));
 
-        await new Promise((res) => setTimeout(res, 3000));
+        // 3. STAY THERE (0.5 seconds)
+        await new Promise((res) => setTimeout(res, 500));
 
+        // 4. CLOUD ANIMATION (2 seconds)
+        setIsPainting(true);
+        await new Promise((res) => setTimeout(res, 2000));
+
+        // 5. REVEAL BLOCK & STAY (0.5 seconds)
         onBlockComplete?.();
+        setIsPainting(false);
+        await new Promise((res) => setTimeout(res, 500));
 
+        // 6. GO BACK TO TABLE (2 seconds)
         moveAvatar(homeX, homeY);
         await new Promise((res) => setTimeout(res, 2000));
 
+        // 7. UNREVEAL PAINTBRUSH
         setIsBusy(false);
       };
 
@@ -110,7 +123,8 @@ export default function Avatar({
         top: `${pos.y}px`,
         transform: `translate(-50%, -50%) scaleX(${facingLeft ? -1 : 1})`,
         transitionProperty: "left, top",
-        transitionDuration: isBusy && pos.y < 400 ? "5000ms" : "2000ms",
+        // CRITICAL: Set to 2000ms to match your walk duration
+        transitionDuration: "2000ms",
         transitionTimingFunction: "ease-in-out"
       }}
     >
@@ -121,6 +135,12 @@ export default function Avatar({
       </div>
 
       <div className="relative">
+        {isPainting && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <DustCloud cellSize={100} />
+          </div>
+        )}
+
         <img 
           src="/paintbrush.png" 
           alt="" 
