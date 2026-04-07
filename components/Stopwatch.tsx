@@ -51,11 +51,11 @@ export default function Stopwatch({
         <div className="flex flex-1 items-center justify-between px-4 gap-4">
           <div className="flex flex-col">
             <h2 className="text-sm font-black uppercase text-neutral-800 leading-none">Congratulations!</h2>
-            <p className="text-[10px] font-bold uppercase text-neutral-400">Session Complete</p>
+            <p className="text-[10px] font-bold uppercase text-neutral-400">You completed the masterpeice.</p>
           </div>
           <button 
             onClick={onFinish}
-            className="flex-1 py-3 bg-yellow-400 border-4 border-neutral-800 rounded-2xl font-black uppercase text-neutral-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+            className="flex-1 py-3 bg-page border-4 border-neutral-800 rounded-2xl font-black uppercase text-neutral-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
           >
             Done
           </button>
