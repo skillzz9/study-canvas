@@ -51,7 +51,7 @@ export default function SettingsPage() {
 
   const handleLogOut = async () => {
     await signOut(auth);
-    router.push("/login");
+    router.push("/signin");
   };
 
   if (loading || !user) return null;
