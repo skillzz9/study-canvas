@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { doc, onSnapshot, collection, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Level from "@/components/Level";
 import GridRevealMask from "@/components/GridRevealMask";
@@ -215,7 +215,19 @@ let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks
 // THIS CHANGES THE LEVELS DEPENDING ON THE TIME
 // --------------------------------------------------------------- //
 // checks end state 
-  const isSessionComplete = revealedCount >= totalSessionBlocks;
+  const isSessionComplete = minutes >= totalMinutes;
+  // deletes room after finished
+  const handleFinishSession = async () => {
+  try {
+    // This removes the document from Firestore
+    // Because Home.tsx looks for snapshot.exists(), this resets the app for everyone
+    await deleteDoc(doc(db, "rooms", "global-room"));
+    router.push("/"); 
+  } catch (error) {
+    console.error("Failed to delete room:", error);
+    alert("Error ending session. Please try again.");
+  }
+};
 
   // the level underneath thats getting drawn ontop of
   const baseLevel = isSessionComplete ? 7 : (currentLayerIndex + 1) as any;
@@ -242,10 +254,12 @@ let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks
           </div>
         </div>
 
-        <Stopwatch 
-          secondsElapsed={secondsElapsed} 
-          workerCount={sortedWorkers.length} 
-        />
+<Stopwatch 
+  secondsElapsed={secondsElapsed} 
+  workerCount={sortedWorkers.length}
+  isSessionComplete={isSessionComplete}
+  onFinish={handleFinishSession}
+/>
 
         {/* RENDERING AVATARS */}
         {dbShuffledIndices.length > 0 ? (
