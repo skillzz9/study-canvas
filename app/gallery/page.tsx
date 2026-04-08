@@ -1,7 +1,8 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import PaintingFrame from "@/components/PaintingFrame"; // Adjust path if needed
+import PaintingFrame from "@/components/PaintingFrame";
+import PictureModal from "@/components/PictureModal";
 
 interface FrameData {
   id: number;
@@ -12,26 +13,51 @@ interface FrameData {
   date?: string;
 }
 
+// 1. HARDCODE YOUR CONTENT HERE
+// You can change titles, dates, or add new paintings here anytime.
+// The x and y values here act as the default starting positions.
+const INITIAL_FRAMES: FrameData[] = [
+  { id: 1, x: -250, y: 0, src: "/test.png", date: "April 2nd 2026" },
+  { id: 2, x: 0, y: 0, src: "/test.png", date: "March 2026" },
+  { id: 3, x: 250, y: 0, src: "/test.png", title: "Neon Nights", date: "Feb 2026" },
+];
+
 export default function GalleryPage() {
   const themeColor = "#000";
-const [frames, setFrames] = useState<FrameData[]>([]);
+  const [frames, setFrames] = useState<FrameData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Modal States
+  const [selectedFrame, setSelectedFrame] = useState<FrameData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const isDragging = useRef(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("gallery_v4");
-    if (saved) {
-      setFrames(JSON.parse(saved));
+    // 2. ONLY LOOK FOR POSITIONS IN LOCAL STORAGE
+    const savedPositionsString = localStorage.getItem("gallery_positions");
+    
+    if (savedPositionsString) {
+      const savedPositions = JSON.parse(savedPositionsString);
+      
+      // Merge the hardcoded content with the saved coordinates
+      const mergedFrames = INITIAL_FRAMES.map((frame) => {
+        const savedCoords = savedPositions.find((p: { id: number }) => p.id === frame.id);
+        if (savedCoords) {
+          return { ...frame, x: savedCoords.x, y: savedCoords.y };
+        }
+        return frame; // If no saved coords (like a newly added painting), use default
+      });
+      
+      setFrames(mergedFrames);
     } else {
-      setFrames([
-        { id: 1, x: -250, y: 0, src: "/test.png" },
-        { id: 2, x: 0, y: 0, src: "/test.png" },
-        { id: 3, x: 250, y: 0, src: "/test.png" },
-      ]);
+      // If nothing is saved at all, just use the defaults
+      setFrames(INITIAL_FRAMES);
     }
+    
     setIsLoaded(true);
   }, []);
 
-  const handleDragEnd = (id, info) => {
+  const handleDragEnd = (id: number, info: any) => {
     const updatedFrames = frames.map((f) => {
       if (f.id === id) {
         return {
@@ -42,8 +68,22 @@ const [frames, setFrames] = useState<FrameData[]>([]);
       }
       return f;
     });
+    
     setFrames(updatedFrames);
-    localStorage.setItem("gallery_v4", JSON.stringify(updatedFrames));
+    
+    // 3. STRIP OUT EVERYTHING EXCEPT ID, X, AND Y TO SAVE
+    const positionsToSave = updatedFrames.map((frame) => ({
+      id: frame.id,
+      x: frame.x,
+      y: frame.y
+    }));
+    
+    localStorage.setItem("gallery_positions", JSON.stringify(positionsToSave));
+  };
+
+  const openModal = (frame: FrameData) => {
+    setSelectedFrame(frame);
+    setIsModalOpen(true);
   };
 
   if (!isLoaded) return null;
@@ -104,15 +144,24 @@ const [frames, setFrames] = useState<FrameData[]>([]);
             dragMomentum={false}
             initial={{ x: frame.x, y: frame.y }}
             animate={{ x: frame.x, y: frame.y }}
-            onDragEnd={(e, info) => handleDragEnd(frame.id, info)}
+            onDragStart={() => (isDragging.current = true)}
+            onDragEnd={(e, info) => {
+              setTimeout(() => { isDragging.current = false; }, 150);
+              handleDragEnd(frame.id, info);
+            }}
             whileDrag={{ scale: 1.05, zIndex: 50 }}
             className="absolute cursor-grab active:cursor-grabbing"
           >
             <PaintingFrame 
               src={frame.src} 
-              alt={`Artwork ${frame.id}`} 
+              alt={frame.title || `Artwork ${frame.id}`} 
               themeColor={themeColor} 
-              title="2nd March"
+              date={frame.date}
+              onClick={() => {
+                if (!isDragging.current) {
+                  openModal(frame);
+                }
+              }}
             />
           </motion.div>
         ))}
@@ -121,6 +170,17 @@ const [frames, setFrames] = useState<FrameData[]>([]);
           Arrange your collection
         </div>
       </div>
+
+      {/* 3. RENDER THE MODAL ON TOP OF EVERYTHING */}
+      {selectedFrame && (
+        <PictureModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          src={selectedFrame.src}
+          title={selectedFrame.title || "Untitled"}
+          date={selectedFrame.date || "Unknown Date"}
+        />
+      )}
     </main>
   );
 }

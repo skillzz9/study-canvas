@@ -5,26 +5,30 @@ import { motion, AnimatePresence } from "framer-motion";
 interface PaintingFrameProps {
   src: string;
   alt?: string;
-  title?: string;
   date?: string;
   themeColor?: string;
+  onClick?: () => void;
 }
 
 export default function PaintingFrame({ 
   src, 
   alt = "Gallery Item", 
-  title, 
   date, 
-  themeColor = "#000" 
+  themeColor = "#000",
+  onClick
 }: PaintingFrameProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <div 
-      className="relative z-20"
+      className="relative z-20 cursor-pointer"
       style={{ width: "200px" }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => {
+        setIsHovered(false); // Keeps the hover state from getting stuck
+        if (onClick) onClick();
+      }}
     >
       {/* HOVER DATE INDICATOR */}
       <AnimatePresence>
@@ -34,6 +38,7 @@ export default function PaintingFrame({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             className="absolute -top-8 left-0 w-full text-center pointer-events-none"
+            style={{ WebkitFontSmoothing: "antialiased" }}
           >
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500 whitespace-nowrap">
               {date}
@@ -42,28 +47,17 @@ export default function PaintingFrame({
         )}
       </AnimatePresence>
 
-      {/* THE PLAQUE (Positioned 10px on top of the main frame, centered) */}
-      {isHovered && title && (
-        <div className="absolute -top-[10px] left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-          <div
-            className="bg-white px-3 py-1 border-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] pointer-events-auto whitespace-nowrap"
-            style={{ borderColor: themeColor }}
-          >
-            <p className="text-[10px] font-black uppercase text-neutral-900 leading-none">
-              {title}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* YOUR EXACT ORNATE FRAME DESIGN */}
       <div 
-        className="p-4 bg-white border-4 relative shadow-lg"
+        className="p-4 bg-white border-4 relative shadow-lg active:scale-95 transition-transform"
         style={{ 
           borderColor: themeColor,
           width: "200px",
           height: "240px",
-          background: `linear-gradient(145deg, #ac9764, #d8c3a1)` 
+          background: `linear-gradient(145deg, #ac9764, #d8c3a1)`,
+          // THE FIX: Locks hardware acceleration so pixels don't shift on hover
+          transform: "translateZ(0)",
+          backfaceVisibility: "hidden"
         }}
       >
         <div className="w-full h-full border-2 border-black bg-neutral-100 overflow-hidden shadow-inner">
@@ -71,6 +65,8 @@ export default function PaintingFrame({
             src={src} 
             alt={alt} 
             className="w-full h-full object-cover"
+            // THE FIX: Keeps the image edges perfectly sharp
+            style={{ transform: "translateZ(0)", backfaceVisibility: "hidden" }}
           />
         </div>
       </div>
