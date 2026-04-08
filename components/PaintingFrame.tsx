@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 interface PaintingFrameProps {
   src: string;
   alt?: string;
+  title?: string; // 1. Added the title prop back here
   date?: string;
   themeColor?: string;
   onClick?: () => void;
@@ -13,6 +14,7 @@ interface PaintingFrameProps {
 export default function PaintingFrame({ 
   src, 
   alt = "Gallery Item", 
+  title, // 2. Destructured it here so the component accepts it
   date, 
   themeColor = "#000",
   onClick
@@ -47,7 +49,7 @@ export default function PaintingFrame({
         )}
       </AnimatePresence>
 
-      {/* YOUR EXACT ORNATE FRAME DESIGN */}
+      {/* YOUR EXACT ORNATE FRAME DESIGN (No title plaque rendered) */}
       <div 
         className="p-4 bg-white border-4 relative shadow-lg active:scale-95 transition-transform"
         style={{ 
@@ -55,7 +57,6 @@ export default function PaintingFrame({
           width: "200px",
           height: "240px",
           background: `linear-gradient(145deg, #ac9764, #d8c3a1)`,
-          // THE FIX: Locks hardware acceleration so pixels don't shift on hover
           transform: "translateZ(0)",
           backfaceVisibility: "hidden"
         }}
@@ -65,7 +66,6 @@ export default function PaintingFrame({
             src={src} 
             alt={alt} 
             className="w-full h-full object-cover"
-            // THE FIX: Keeps the image edges perfectly sharp
             style={{ transform: "translateZ(0)", backfaceVisibility: "hidden" }}
           />
         </div>

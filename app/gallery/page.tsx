@@ -14,11 +14,9 @@ interface FrameData {
 }
 
 // 1. HARDCODE YOUR CONTENT HERE
-// You can change titles, dates, or add new paintings here anytime.
-// The x and y values here act as the default starting positions.
 const INITIAL_FRAMES: FrameData[] = [
-  { id: 1, x: -250, y: 0, src: "/test.png", date: "April 2nd 2026" },
-  { id: 2, x: 0, y: 0, src: "/test.png", date: "March 2026" },
+  { id: 1, x: -250, y: 0, src: "/test.png", title: "Neon Nights", date: "April 2nd 2026" },
+  { id: 2, x: 0, y: 0, src: "/test.png", title: "Neon Nights", date: "March 2026" },
   { id: 3, x: 250, y: 0, src: "/test.png", title: "Neon Nights", date: "Feb 2026" },
 ];
 
@@ -39,18 +37,16 @@ export default function GalleryPage() {
     if (savedPositionsString) {
       const savedPositions = JSON.parse(savedPositionsString);
       
-      // Merge the hardcoded content with the saved coordinates
       const mergedFrames = INITIAL_FRAMES.map((frame) => {
         const savedCoords = savedPositions.find((p: { id: number }) => p.id === frame.id);
         if (savedCoords) {
           return { ...frame, x: savedCoords.x, y: savedCoords.y };
         }
-        return frame; // If no saved coords (like a newly added painting), use default
+        return frame; 
       });
       
       setFrames(mergedFrames);
     } else {
-      // If nothing is saved at all, just use the defaults
       setFrames(INITIAL_FRAMES);
     }
     
@@ -98,16 +94,34 @@ export default function GalleryPage() {
         preserveAspectRatio="none"
       >
         <defs>
-          <pattern id="woodPattern" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
-            <rect width="10" height="10" fill="#451a03" />
-            <line x1="0" y1="0" x2="0" y2="10" stroke="#311102" strokeWidth="0.5" />
-          </pattern>
+          {/* Created a clipPath the exact size of the floor */}
+          <clipPath id="floorClip">
+            <polygon points="0,100 100,100 90,90 10,90" />
+          </clipPath>
         </defs>
 
         <polygon points="0,0 100,0 90,10 10,10" fill="#f3f4f6" />
         <polygon points="0,0 10,10 10,90 0,100" fill="#e5e7eb" />
         <polygon points="100,0 90,10 90,90 100,100" fill="#e5e7eb" />
-        <polygon points="0,100 100,100 90,90 10,90" fill="url(#woodPattern)" />
+        
+        {/* FLOOR BACKGROUND */}
+        <polygon points="0,100 100,100 90,90 10,90" fill="#451a03" />
+        
+        {/* 3D FLOORBOARDS */}
+        <g clipPath="url(#floorClip)">
+          {/* Generates 21 lines radiating from the center vanishing point (50, 50) */}
+          {Array.from({ length: 21 }).map((_, i) => (
+            <line 
+              key={i} 
+              x1="50" 
+              y1="50" 
+              x2={i * 5} 
+              y2="100" 
+              stroke="#311102" 
+              strokeWidth="0.5" 
+            />
+          ))}
+        </g>
 
         <line x1="0" y1="0" x2="10" y2="10" stroke={themeColor} strokeWidth="0.1" />
         <line x1="100" y1="0" x2="90" y2="10" stroke={themeColor} strokeWidth="0.1" />
@@ -155,7 +169,8 @@ export default function GalleryPage() {
             <PaintingFrame 
               src={frame.src} 
               alt={frame.title || `Artwork ${frame.id}`} 
-              themeColor={themeColor} 
+              themeColor={themeColor}
+              title={frame.title} 
               date={frame.date}
               onClick={() => {
                 if (!isDragging.current) {
