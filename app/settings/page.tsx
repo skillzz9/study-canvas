@@ -18,10 +18,10 @@ export default function SettingsPage() {
 
   // Update this list to match your public/avatars folder
   const avatarOptions = [
-    "avatar1.webp",
-    "avatar2.webp",
-    "avatar3.webp",
-    "avatar4.webp",
+    "avatar9.webp",
+    "avatar7.webp",
+    "avatar6.webp",
+    "avatar8.webp",
   ];
 
   useEffect(() => {
