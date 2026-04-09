@@ -80,9 +80,12 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number, t
 
 export const startGlobalRoom = async () => {
   const roomRef = doc(db, "rooms", "global-room");
+  const now = serverTimestamp();
   await updateDoc(roomRef, {
     status: "active",
-    lastStartTime: serverTimestamp()
+    lastStartTime: now,
+    // ADD THIS: This is the "Anchor" for the individual stopwatches
+    sessionStartedAt: now 
   });
 };
 
@@ -124,11 +127,20 @@ export const leaveGlobalRoom = async (uid: string) => {
 /**
  * Updates the user's presence so others can see their avatar.
  */
-export const updatePresence = async (user: any, userData: any) => {
+export const updatePresence = async (user: any, userData: any, isInitialJoin: boolean = false) => {
   const presenceRef = doc(db, "rooms", "global-room", "presence", user.uid);
-  await setDoc(presenceRef, {
+  
+  const data: any = {
     username: userData?.username || "Guest",
     avatar: userData?.avatar || "/avatars/avatar1.webp",
     lastSeen: serverTimestamp(),
-  });
+  };
+
+  // Only record the join time if this is the first entry
+  // leaveGlobalRoom deletes this doc, so it resets correctly on next join
+  if (isInitialJoin) {
+    data.joinedAt = serverTimestamp();
+  }
+
+  await setDoc(presenceRef, data, { merge: true });
 };

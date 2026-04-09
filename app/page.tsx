@@ -129,7 +129,7 @@ useEffect(() => {
         TOTAL_BLOCKS, 
         calculatedTotalMinutes, 
         GRID_SIZE, 
-        TOTAL_LAYERS
+        TOTAL_LAYERS,
       );
         // ------------------------------------------------- //
         router.push("/studyroom"); // go to study room

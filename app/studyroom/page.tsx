@@ -16,126 +16,104 @@ import { updatePresence, leaveGlobalRoom } from "@/lib/roomService";
 
 export default function StudyRoom() {
   const router = useRouter();
-// For security, gathers who is logged in from the auth
   const { user, loading: authLoading } = useAuth();
-  // Gets the actual user data in the firestore. 
   const [userData, setUserData] = useState<UserProfile | null>(null);
 
-  // the global database shuffled indicies 
   const [dbShuffledIndices, setDbShuffledIndices] = useState<number[]>([]);
-    // gives me loading state when things are loading 
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Holds the string of the photo that is uploaded.
   const [studyImage, setStudyImage] = useState<string | null>(null);
-
-  // Holds the value of the time set in the beggining. 
-  const [totalMinutes, setTotalMinutes] = useState<number>(30); // Default, will sync from DB
+  const [totalMinutes, setTotalMinutes] = useState<number>(30); 
   
-  // finds out how much seconds has elapsed
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const minutes = secondsElapsed / 60;
 
-  // shows how many blocks have been revealed.
   const [revealedCount, setRevealedCount] = useState(0);
 
-// FOR MULTIPLAYER TO WORK 
-// --------------------------------------------------------------------- //
-// the array of profile objects (with username and avatar) in the room
   const [collaborators, setCollaborators] = useState<any[]>([]);
-  // number of avatars
-  // how much seconds have passed SINCE the last time it was set to active. 
   const [bankedMs, setBankedMs] = useState(0);
-  // counts the millsecond the room was most recently became active
+  
+  // globalStartTime is for the collective multiplier logic (shifting)
   const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
-  // syncs if the room is active or idle
+  // stableSessionStart is for the individual avatar stopwatches (fixed)
+  const [stableSessionStart, setStableSessionStart] = useState<number | null>(null);
+  
   const [roomStatus, setRoomStatus] = useState("idle");
-// --------------------------------------------------------------------- //
 
-  // SYNCED GRID SETTINGS (Replaces hardcoded constants)
-  // --------------------------------------------------------------- //
   const [gridSize, setGridSize] = useState(2); 
   const [totalLayers, setTotalLayers] = useState(6);
 
-  // Derived settings based on synced database values
   const blocksPerLayer = gridSize * gridSize;
   const totalSessionBlocks = blocksPerLayer * totalLayers;
-  // --------------------------------------------------------------- //
 
-  // getting the same order of workers for everyone (sorting them)
-const sortedWorkers = useMemo(() => {
+  const sortedWorkers = useMemo(() => {
     return [...collaborators].sort((a, b) => a.id.localeCompare(b.id));
   }, [collaborators]);
 
+  // CONSOLIDATED SYNCING LOGIC
+  useEffect(() => {
+    const roomRef = doc(db, "rooms", "global-room");
+    const unsubscribe = onSnapshot(roomRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        
+        setRevealedCount(data.revealedCount || 0); 
+        
+        const currentBankedMs = data.accumulatedMs || 0;
+        setBankedMs(currentBankedMs); 
+        setSecondsElapsed(currentBankedMs / 1000);
 
-  
-// CONSOLIDATED SYNCING LOGIC
-// --------------------------------------------------------------- //
-useEffect(() => {
-  const roomRef = doc(db, "rooms", "global-room");
-  const unsubscribe = onSnapshot(roomRef, (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.data();
-      
-      // SYNC ALL SETTINGS FROM DB
-      setRevealedCount(data.revealedCount || 0); 
-      
-      // FIX: Capture and set elapsed time immediately from banked data
-      // This ensures that idle rooms show the correct time upon entering
-      const currentBankedMs = data.accumulatedMs || 0;
-      setBankedMs(currentBankedMs); 
-      setSecondsElapsed(currentBankedMs / 1000);
+        setTotalMinutes(data.totalMinutes || 30);
+        setDbShuffledIndices(data.shuffledIndices || []);
+        setRoomStatus(data.status || "idle"); 
+        
+        if (data.gridSize) setGridSize(data.gridSize);
+        if (data.totalLayers) setTotalLayers(data.totalLayers);
+        
+        // Update the shifting checkpoint for collective time
+        if (data.lastStartTime) {
+          setGlobalStartTime(data.lastStartTime.toDate().getTime());
+        }
 
-      setTotalMinutes(data.totalMinutes || 30);
-      setDbShuffledIndices(data.shuffledIndices || []);
-      setRoomStatus(data.status || "idle"); // SYNC STATUS
-      
-      // SYNC DYNAMIC GRID SETTINGS
-      if (data.gridSize) setGridSize(data.gridSize);
-      if (data.totalLayers) setTotalLayers(data.totalLayers);
-      
-      if (data.lastStartTime) {
-        setGlobalStartTime(data.lastStartTime.toDate().getTime());
+        // Update the stable anchor for individual avatar timers
+        // We fall back to lastStartTime if the specific session anchor hasn't been set yet
+        const sessionAnchor = data.sessionStartedAt || data.lastStartTime;
+        if (sessionAnchor) {
+          setStableSessionStart(sessionAnchor.toDate().getTime());
+        }
       }
-    }
-  });
-  return () => unsubscribe();
-}, []);
-// --------------------------------------------------------------- //
+    });
+    return () => unsubscribe();
+  }, []);
   
-// GETTING ALL THE AVATAR PROFILES STORED LOCALLY 
-// --------------------------------------------------------------- //
-useEffect(() => {
-  if (!user || !userData) return;
+  useEffect(() => {
+    if (!user || !userData) return;
 
-  updatePresence(user, userData);
-  const presenceRef = collection(db, "rooms", "global-room", "presence");
+    updatePresence(user, userData);
+    const presenceRef = collection(db, "rooms", "global-room", "presence");
 
-  const unsubscribe = onSnapshot(presenceRef, (snapshot) => {
-    const players = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    setCollaborators(players);
-  });
+    const unsubscribe = onSnapshot(presenceRef, (snapshot) => {
+      const players = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setCollaborators(players);
+    });
 
-  return () => {
-    leaveGlobalRoom(user.uid);
-    unsubscribe();
-  };
-}, [user, userData]);
-// --------------------------------------------------------------- //
+    return () => {
+      leaveGlobalRoom(user.uid);
+      unsubscribe();
+    };
+  }, [user, userData]);
 
-// ADDED ROOMSTATUS CHECK TO INTERVAL
-useEffect(() => {
+  useEffect(() => {
     let interval: NodeJS.Timeout;
-    // Only tick the seconds if the room is active and not finished
     if (globalStartTime && roomStatus === "active" && minutes < totalMinutes) {
       interval = setInterval(() => {
         const now = Date.now();
+        // Collective time uses globalStartTime (lastStartTime) to track the current worker set
         const msSinceCheckpoint = now - globalStartTime;
         
-        // Multiplier: Every 1 real second = (1 * workers) collective seconds
         const workerMultiplier = Math.max(1, sortedWorkers.length);
         const collectiveMs = msSinceCheckpoint * workerMultiplier;
         
@@ -146,26 +124,20 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, [globalStartTime, bankedMs, sortedWorkers.length, roomStatus, minutes, totalMinutes]);
 
-// ADDS THE AMOUNT OF BLOCKS REVEALED TO SERVER
-// --------------------------------------------------------------- //
-const handleBlockComplete = async () => {
-  const roomRef = doc(db, "rooms", "global-room");
-  await updateDoc(roomRef, {
-    revealedCount: revealedCount + 1
-  });
-};
-// --------------------------------------------------------------- //
+  const handleBlockComplete = async () => {
+    const roomRef = doc(db, "rooms", "global-room");
+    await updateDoc(roomRef, {
+      revealedCount: revealedCount + 1
+    });
+  };
 
-// LOADING IMAGE 
-// ------------------------------------------------------------------- //
-useEffect(() => {
-    const savedImage = "test.png"
+  useEffect(() => {
+    const savedImage = "test.png";
     const savedTime = localStorage.getItem("studyTime"); 
 
     if (!savedImage) {
       router.push("/"); 
     } else {
-      // convert image to blob URL, makes it load faster.
       fetch(savedImage)
         .then((res) => res.blob())
         .then((blob) => {
@@ -176,18 +148,14 @@ useEffect(() => {
       if (savedTime) setTotalMinutes(Number(savedTime));
     }
     
-    // Clean up the Blob URL when the user leaves the room to free up memory
     return () => {
       if (studyImage && studyImage.startsWith("blob:")) {
         URL.revokeObjectURL(studyImage);
       }
     };
   }, [router]);
-// ------------------------------------------------------------------- //
 
-// GETTING USER DATA FOR AVATAR
-// ------------------------------------------------------------------ //
-useEffect(() => {
+  useEffect(() => {
     if (!authLoading) {
       if (!user) {
         router.push("/login");
@@ -206,41 +174,29 @@ useEffect(() => {
       }
     }
   }, [user, authLoading, router]);
-// ------------------------------------------------------------------ //
+
   const isSessionComplete = minutes >= totalMinutes;
-useEffect(() => {
-  if (isSessionComplete) {
-    // Fire a big burst immediately
-    confetti({
-      particleCount: 150,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#22c55e', '#ef4444', '#eab308', '#3b82f6'] // Match your Neubrutalist colors
-    });
 
-    // Fire side cannons every 2 seconds for a "continuous" party
-    const interval = setInterval(() => {
+  useEffect(() => {
+    if (isSessionComplete) {
       confetti({
-        particleCount: 50,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 }
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#22c55e', '#ef4444', '#eab308', '#3b82f6']
       });
-      confetti({
-        particleCount: 50,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 }
-      });
-    }, 2000);
 
-    return () => clearInterval(interval);
-  }
-}, [isSessionComplete]);
-  // Math for progress based on dynamic database settings
+      const interval = setInterval(() => {
+        confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 } });
+        confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1 } });
+      }, 2000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isSessionComplete]);
+
   const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
 
-// If any of these are loading, then we just dispplay entering room
   if (authLoading || dataLoading || !studyImage) {
     return (
       <main className="min-h-screen bg-paper flex items-center justify-center font-space">
@@ -249,36 +205,23 @@ useEffect(() => {
     );
   }
 
-  // Figures out how many blocks the avatar should have drawn at a certain given time. 
-let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks);
+  let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks);
 
-  // Starts the avatar right when the timer starts. 
   if (secondsElapsed > 0) {
-  targetBlocksCount = Math.min(targetBlocksCount + 1, totalSessionBlocks);
-}
-  
-// THIS CHANGES THE LEVELS DEPENDING ON THE TIME
-// --------------------------------------------------------------- //
-// checks end state 
-
-  
-  // deletes room after finished
-  const handleFinishSession = async () => {
-  try {
-    // This removes the document from Firestore
-    // Because Home.tsx looks for snapshot.exists(), this resets the app for everyone
-    await deleteDoc(doc(db, "rooms", "global-room"));
-    router.push("/"); 
-  } catch (error) {
-    console.error("Failed to delete room:", error);
-    alert("Error ending session. Please try again.");
+    targetBlocksCount = Math.min(targetBlocksCount + 1, totalSessionBlocks);
   }
-};
+  
+  const handleFinishSession = async () => {
+    try {
+      await deleteDoc(doc(db, "rooms", "global-room"));
+      router.push("/"); 
+    } catch (error) {
+      console.error("Failed to delete room:", error);
+      alert("Error ending session. Please try again.");
+    }
+  };
 
-
-  // the level underneath thats getting drawn ontop of
   const baseLevel = isSessionComplete ? 7 : (currentLayerIndex + 1) as any;
-  // the level above thats getting drawn
   const topLevel = (currentLayerIndex + 2) as any;
 
   return (
@@ -301,13 +244,13 @@ let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks
           </div>
         </div>
 
-<Stopwatch 
-  secondsElapsed={secondsElapsed} 
-  workerCount={sortedWorkers.length}
-  isSessionComplete={isSessionComplete}
-  onFinish={handleFinishSession}
-  roomStatus={roomStatus}
-/>
+        <Stopwatch 
+          secondsElapsed={secondsElapsed} 
+          workerCount={sortedWorkers.length}
+          isSessionComplete={isSessionComplete}
+          onFinish={handleFinishSession}
+          roomStatus={roomStatus}
+        />
 
         {/* RENDERING AVATARS */}
         {dbShuffledIndices.length > 0 ? (
@@ -323,6 +266,10 @@ let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks
               shuffledIndices={dbShuffledIndices} 
               gridSize={gridSize}
               onBlockComplete={handleBlockComplete}
+              lastSeen={player.lastSeen}
+              roomStatus={roomStatus}
+              // FIXED: Passing stableSessionStart ensures individual timers don't reset
+              globalStartTime={stableSessionStart}
             />
           ))
         ) : (
