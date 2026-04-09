@@ -37,9 +37,17 @@ export default function Avatar({
   const [isPainting, setIsPainting] = useState(false);
   const [stopwatch, setStopwatch] = useState("00:00:00");
   
+  // NEW: State to trigger the zoom effect
+  const [isMounted, setIsMounted] = useState(false);
+
   const homeX = 200 + (myIndex * 45); 
   const homeY = 580;
   const [state, setState] = useState({ x: homeX, y: homeY, facingLeft: false });
+
+  // NEW: Trigger zoom effect on mount
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // 1. CONDITIONAL STOPWATCH LOGIC
   useEffect(() => {
@@ -137,9 +145,11 @@ useEffect(() => {
     <div 
       className="absolute top-0 left-0 z-50 pointer-events-none flex flex-col items-center"
       style={{ 
-        transform: `translate3d(${state.x}px, ${state.y}px, 0) translate(-50%, -50%)`,
-        transition: "transform 2000ms ease-in-out",
-        willChange: "transform"
+        // Logic: Add scale and opacity based on isMounted state
+        transform: `translate3d(${state.x}px, ${state.y}px, 0) translate(-50%, -50%) scale(${isMounted ? 1 : 0})`,
+        opacity: isMounted ? 1 : 0,
+        transition: "transform 2000ms ease-in-out, opacity 2000ms ease-in-out",
+        willChange: "transform, opacity"
       }}
     >
       {/* USERNAME & STOPWATCH (Stationary text) */}
