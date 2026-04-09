@@ -205,11 +205,9 @@ export default function StudyRoom() {
     );
   }
 
-  let targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks);
+  const targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks);
 
-  if (secondsElapsed > 0) {
-    targetBlocksCount = Math.min(targetBlocksCount + 1, totalSessionBlocks);
-  }
+
   
   const handleFinishSession = async () => {
     try {
@@ -226,9 +224,15 @@ export default function StudyRoom() {
 
   return (
     <main className="min-h-screen bg-paper flex flex-col items-center justify-center">
+      
       <div className="relative flex flex-col items-center pb-40">
-        
+                <div className="absolute -top-4 -right-4 z-40 bg-paper border-4 border-neutral-800 px-3 py-1 rounded-xl ">
+    <span className="text-sm font-black uppercase text-neutral-800 tabular-nums">
+      {totalSessionBlocks > 0 ? Math.round((revealedCount / totalSessionBlocks) * 100) : 0}%
+    </span>
+  </div>
         <div className="w-[400px] h-[400px] relative shadow-2xl bg-white rounded-2xl border-4 border-neutral-800 overflow-hidden">
+          
           <div className="absolute inset-0 z-0">
             <Level imageSrc={studyImage} level={baseLevel} />
           </div>
@@ -244,14 +248,16 @@ export default function StudyRoom() {
           </div>
         </div>
 
-        <Stopwatch 
-          secondsElapsed={secondsElapsed} 
-          workerCount={sortedWorkers.length}
-          isSessionComplete={isSessionComplete}
-          onFinish={handleFinishSession}
-          roomStatus={roomStatus}
-        />
-
+<Stopwatch 
+  secondsElapsed={secondsElapsed} 
+  totalMinutes={totalMinutes} // Make sure to pass this!
+  workerCount={sortedWorkers.length}
+  isSessionComplete={isSessionComplete}
+  onFinish={handleFinishSession}
+  roomStatus={roomStatus}
+  revealedCount={revealedCount}
+  totalSessionBlocks={totalSessionBlocks}
+/>
         {/* RENDERING AVATARS */}
         {dbShuffledIndices.length > 0 ? (
           sortedWorkers.map((player, index) => (

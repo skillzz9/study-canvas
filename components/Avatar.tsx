@@ -37,21 +37,20 @@ export default function Avatar({
   const [isPainting, setIsPainting] = useState(false);
   const [stopwatch, setStopwatch] = useState("00:00:00");
   
-  // NEW: State to trigger the zoom effect
+  // State for the zoom-in entry effect
   const [isMounted, setIsMounted] = useState(false);
 
   const homeX = 200 + (myIndex * 45); 
   const homeY = 580;
   const [state, setState] = useState({ x: homeX, y: homeY, facingLeft: false });
 
-  // NEW: Trigger zoom effect on mount
+  // Trigger zoom effect on mount
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   // 1. CONDITIONAL STOPWATCH LOGIC
   useEffect(() => {
-    // If room is not active or data is missing, reset/stop timer
     if (roomStatus !== "active" || !globalStartTime || !lastSeen) {
       setStopwatch("00:00:00");
       return;
@@ -61,9 +60,6 @@ export default function Avatar({
 
     const tick = () => {
       const now = Date.now();
-      
-      // The timer starts at 0 from whichever happened LATEST: 
-      // the room starting OR the user joining.
       const effectiveStart = Math.max(userJoinTime, globalStartTime);
       const diff = Math.max(0, now - effectiveStart);
 
@@ -75,7 +71,8 @@ export default function Avatar({
     };
 
     tick();
-    const interval = setInterval(tick, 1000);
+    // CHANGED: 1000ms -> 100ms for high-frequency syncing
+    const interval = setInterval(tick, 100); 
     return () => clearInterval(interval);
   }, [lastSeen, roomStatus, globalStartTime]);
 
@@ -96,22 +93,17 @@ export default function Avatar({
     return { x: col * blockSize + blockSize / 2, y: row * blockSize + blockSize / 2 };
   };
 
-  // 3. IDLE WALKING (Wide Range: Middle 400px +- 250px)
-useEffect(() => {
-  if (isBusy) return;
+  // 3. IDLE WALKING
+  useEffect(() => {
+    if (isBusy) return;
 
-  const idleInterval = setInterval(() => {
-    // 1. Pick a random absolute position on the desk surface
-    // Math: MinValue + (Random * TotalRange)
-    // 150 + (Math.random() * 500) results in a number between 150 and 650
-    const targetX = Math.random() * 300;
+    const idleInterval = setInterval(() => {
+      const targetX = Math.random() * 300;
+      moveAvatar(targetX, homeY);
+    }, 4000);
 
-    // 2. Just move there
-    moveAvatar(targetX, homeY);
-  }, 4000);
-
-  return () => clearInterval(idleInterval);
-}, [isBusy, homeY]);
+    return () => clearInterval(idleInterval);
+  }, [isBusy, homeY]);
 
   // 4. ARTIST LOOP
   useEffect(() => {
@@ -145,21 +137,19 @@ useEffect(() => {
     <div 
       className="absolute top-0 left-0 z-50 pointer-events-none flex flex-col items-center"
       style={{ 
-        // Logic: Add scale and opacity based on isMounted state
+        // Logic: Added scale and opacity for the join animation
         transform: `translate3d(${state.x}px, ${state.y}px, 0) translate(-50%, -50%) scale(${isMounted ? 1 : 0})`,
         opacity: isMounted ? 1 : 0,
         transition: "transform 2000ms ease-in-out, opacity 2000ms ease-in-out",
         willChange: "transform, opacity"
       }}
     >
-      {/* USERNAME & STOPWATCH (Stationary text) */}
       <div className="mb-1 flex flex-col items-center gap-0.5">
         <h1 className="text-[12px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap px-1 rounded bg-white/80 border border-neutral-200 shadow-sm">
           {userName}
         </h1>
       </div>
 
-      {/* AVATAR & TOOLS (Flippable graphics) */}
       <div className="relative" style={{ transform: `scaleX(${state.facingLeft ? -1 : 1})` }}>
         {isPainting && (
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -175,9 +165,9 @@ useEffect(() => {
           className={`w-17 h-17 object-contain ${isBusy && state.y < 450 ? "animate-bounce" : ""}`} 
         />
       </div>
-                      <span className="text-[12px] font-mono font-bold text-neutral-500 bg-white/60 px-1 rounded tabular-nums">
-          {stopwatch}
-        </span>
+      <span className="text-[12px] font-mono font-bold text-neutral-500 bg-white/60 px-1 rounded tabular-nums">
+        {stopwatch}
+      </span>
     </div>
   );
 }

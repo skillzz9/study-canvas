@@ -4,32 +4,53 @@ import { startGlobalRoom } from "@/lib/roomService";
 
 interface StopwatchProps {
   secondsElapsed: number;
+  totalMinutes: number; 
   workerCount: number; 
   isSessionComplete: boolean; 
   onFinish: () => void;       
-  roomStatus: string; // New prop to track if room is 'idle' or 'active'
+  roomStatus: string; 
+  // NEW PROPS: Added to track square progress
+  revealedCount: number;
+  totalSessionBlocks: number;
 }
 
 export default function Stopwatch({ 
   secondsElapsed, 
+  totalMinutes,
   workerCount, 
   isSessionComplete, 
   onFinish,
-  roomStatus
+  roomStatus,
+  revealedCount,
+  totalSessionBlocks
 }: StopwatchProps) {
-  // We floor all values to strip the decimals coming from the high-frequency sync
-  const hours = String(Math.floor(secondsElapsed / 3600)).padStart(2, '0');
-  const minutes = String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0');
-  const seconds = String(Math.floor(secondsElapsed % 60)).padStart(2, '0');
+  
+  const totalSecondsGoal = totalMinutes * 60;
+  const remainingSeconds = Math.max(0, totalSecondsGoal - secondsElapsed);
+  
+  // 1. UPDATED LOGIC: Fill based on squares, not time
+  const progressPercentage = totalSessionBlocks > 0 
+    ? Math.min(100, (revealedCount / totalSessionBlocks) * 100) 
+    : 0;
 
-  // Determine the speed label (e.g., 1x, 2x, 3x)
+  const hours = String(Math.floor(remainingSeconds / 3600)).padStart(2, '0');
+  const minutes = String(Math.floor((remainingSeconds % 3600) / 60)).padStart(2, '0');
+  const seconds = String(Math.floor(remainingSeconds % 60)).padStart(2, '0');
+
   const multiplier = Math.max(1, workerCount);
 
   return (
-    <div className="w-[400px] flex bg-white p-2 rounded-3xl border-4 border-neutral-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-20 items-center gap-4 justify-center font-space">
+    <div className="w-[400px] relative overflow-hidden flex bg-white p-2 rounded-3xl border-4 border-neutral-800 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-20 items-center gap-4 justify-center font-space">
       
+      {/* 2. THE BACKGROUND PROGRESS FILL (Now tied to squares) */}
+      <div 
+        className="absolute left-0 top-0 bottom-0 bg-blue-500/20 transition-all duration-700 ease-out"
+        style={{ width: `${progressPercentage}%` }}
+      />
+
+      {/* 3. CONTENT (z-10 ensures text stays on top) */}
       {!isSessionComplete ? (
-        <>
+        <div className="flex items-center gap-4 justify-center z-10 w-full">
           {/* START BUTTON vs LIVE INDICATOR */}
           {roomStatus === "idle" ? (
             <button 
@@ -45,8 +66,8 @@ export default function Stopwatch({
             </div>
           )}
           
-          {/* TIME DISPLAY */}
-          <div className="w-48 tabular-nums text-center text-neutral-800 uppercase tracking-widest text-4xl font-bold">
+          {/* TIME DISPLAY (Countdown) */}
+          <div className="w-48 tabular-nums text-center text-neutral-800 uppercase tracking-widest text-4xl font-bold drop-shadow-sm">
             {hours}:{minutes}:{seconds}
           </div>
           
@@ -58,10 +79,10 @@ export default function Stopwatch({
           >
             {multiplier}x
           </div>
-        </>
+        </div>
       ) : (
-        /* END STATE: Swaps content while keeping the 400px container the same */
-        <div className="flex flex-1 items-center justify-between px-4 gap-4">
+        /* END STATE */
+        <div className="flex flex-1 items-center justify-between px-4 gap-4 z-10">
           <div className="flex flex-col">
             <h2 className="text-sm font-black uppercase text-neutral-800 leading-none">Congratulations!</h2>
             <p className="text-[10px] font-bold uppercase text-neutral-400">You completed the masterpiece.</p>
