@@ -89,16 +89,21 @@ export default function Avatar({
   };
 
   // 3. IDLE WALKING (Wide Range: Middle 400px +- 250px)
-  useEffect(() => {
-    if (isBusy) return;
-    const idleInterval = setInterval(() => {
-      const middleX = 400; 
-      const range = 250;
-      const randomX = (middleX - range) + Math.random() * (range * 2); 
-      moveAvatar(randomX, homeY);
-    }, 4000); 
-    return () => clearInterval(idleInterval);
-  }, [isBusy, homeX]);
+useEffect(() => {
+  if (isBusy) return;
+
+  const idleInterval = setInterval(() => {
+    // 1. Pick a random absolute position on the desk surface
+    // Math: MinValue + (Random * TotalRange)
+    // 150 + (Math.random() * 500) results in a number between 150 and 650
+    const targetX = Math.random() * 300;
+
+    // 2. Just move there
+    moveAvatar(targetX, homeY);
+  }, 4000);
+
+  return () => clearInterval(idleInterval);
+}, [isBusy, homeY]);
 
   // 4. ARTIST LOOP
   useEffect(() => {
@@ -139,12 +144,9 @@ export default function Avatar({
     >
       {/* USERNAME & STOPWATCH (Stationary text) */}
       <div className="mb-1 flex flex-col items-center gap-0.5">
-        <h1 className="text-[10px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap px-1 rounded bg-white/80 border border-neutral-200 shadow-sm">
+        <h1 className="text-[12px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap px-1 rounded bg-white/80 border border-neutral-200 shadow-sm">
           {userName}
         </h1>
-        <span className="text-[8px] font-mono font-bold text-neutral-500 bg-white/60 px-1 rounded tabular-nums">
-          {stopwatch}
-        </span>
       </div>
 
       {/* AVATAR & TOOLS (Flippable graphics) */}
@@ -160,9 +162,12 @@ export default function Avatar({
         />
         <img 
           src={avatarSrc} 
-          className={`w-12 h-12 object-contain ${isBusy && state.y < 450 ? "animate-bounce" : ""}`} 
+          className={`w-17 h-17 object-contain ${isBusy && state.y < 450 ? "animate-bounce" : ""}`} 
         />
       </div>
+                      <span className="text-[12px] font-mono font-bold text-neutral-500 bg-white/60 px-1 rounded tabular-nums">
+          {stopwatch}
+        </span>
     </div>
   );
 }
