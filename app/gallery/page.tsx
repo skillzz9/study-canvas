@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import PaintingFrame from "@/components/PaintingFrame";
 import PictureModal from "@/components/PictureModal";
+import Link from "next/link";
 
 interface FrameData {
   id: number;
@@ -13,11 +14,8 @@ interface FrameData {
   date?: string;
 }
 
-// 1. HARDCODE YOUR CONTENT HERE
 const INITIAL_FRAMES: FrameData[] = [
-  { id: 1, x: -250, y: 0, src: "/test.png", title: "Neon Nights", date: "April 2nd 2026" },
-  { id: 2, x: 0, y: 0, src: "/test.png", title: "Neon Nights", date: "March 2026" },
-  { id: 3, x: 250, y: 0, src: "/test.png", title: "Neon Nights", date: "Feb 2026" },
+  { id: 1, x: -250, y: 0, src: "/test.png", title: "type shit", date: "April 2nd 2026" },
 ];
 
 export default function GalleryPage() {
@@ -25,18 +23,15 @@ export default function GalleryPage() {
   const [frames, setFrames] = useState<FrameData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   
-  // Modal States
   const [selectedFrame, setSelectedFrame] = useState<FrameData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isDragging = useRef(false);
 
   useEffect(() => {
-    // 2. ONLY LOOK FOR POSITIONS IN LOCAL STORAGE
     const savedPositionsString = localStorage.getItem("gallery_positions");
     
     if (savedPositionsString) {
       const savedPositions = JSON.parse(savedPositionsString);
-      
       const mergedFrames = INITIAL_FRAMES.map((frame) => {
         const savedCoords = savedPositions.find((p: { id: number }) => p.id === frame.id);
         if (savedCoords) {
@@ -44,12 +39,10 @@ export default function GalleryPage() {
         }
         return frame; 
       });
-      
       setFrames(mergedFrames);
     } else {
       setFrames(INITIAL_FRAMES);
     }
-    
     setIsLoaded(true);
   }, []);
 
@@ -67,7 +60,6 @@ export default function GalleryPage() {
     
     setFrames(updatedFrames);
     
-    // 3. STRIP OUT EVERYTHING EXCEPT ID, X, AND Y TO SAVE
     const positionsToSave = updatedFrames.map((frame) => ({
       id: frame.id,
       x: frame.x,
@@ -86,15 +78,24 @@ export default function GalleryPage() {
 
   return (
     <main className="relative w-full h-screen bg-white overflow-hidden flex items-center justify-center font-space">
+
+      <Link 
+        href="/"
+        className="absolute top-8 left-8 z-50 p-3 bg-white border-4 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-black flex items-center justify-center"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+      </Link>
       
-      {/* 1. PERSPECTIVE SYSTEM */}
+      {/* 1. PERSPECTIVE SYSTEM (Background Environment) */}
       <svg 
         viewBox="0 0 100 100" 
         className="absolute inset-0 w-full h-full pointer-events-none"
         preserveAspectRatio="none"
       >
         <defs>
-          {/* Created a clipPath the exact size of the floor */}
           <clipPath id="floorClip">
             <polygon points="0,100 100,100 90,90 10,90" />
           </clipPath>
@@ -103,23 +104,11 @@ export default function GalleryPage() {
         <polygon points="0,0 100,0 90,10 10,10" fill="#f3f4f6" />
         <polygon points="0,0 10,10 10,90 0,100" fill="#e5e7eb" />
         <polygon points="100,0 90,10 90,90 100,100" fill="#e5e7eb" />
-        
-        {/* FLOOR BACKGROUND */}
         <polygon points="0,100 100,100 90,90 10,90" fill="#451a03" />
         
-        {/* 3D FLOORBOARDS */}
         <g clipPath="url(#floorClip)">
-          {/* Generates 21 lines radiating from the center vanishing point (50, 50) */}
           {Array.from({ length: 21 }).map((_, i) => (
-            <line 
-              key={i} 
-              x1="50" 
-              y1="50" 
-              x2={i * 5} 
-              y2="100" 
-              stroke="#311102" 
-              strokeWidth="0.5" 
-            />
+            <line key={i} x1="50" y1="50" x2={i * 5} y2="100" stroke="#311102" strokeWidth="0.5" />
           ))}
         </g>
 
@@ -131,15 +120,16 @@ export default function GalleryPage() {
 
       {/* 2. THE BACK WALL */}
       <div 
-        className="relative z-10 bg-white flex items-center justify-center overflow-hidden"
+        className="relative z-10 bg-white flex items-center justify-center"
         style={{
           width: "80%",
           height: "80%",
-          border: `2px solid ${themeColor}`
+          border: `2px solid ${themeColor}`,
+          overflow: "visible" // Allows paintings to be seen on the grey walls
         }}
       >
         {/* SIGN */}
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-20">
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
           <div 
             className="bg-white px-8 py-3 border-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
             style={{ borderColor: themeColor }}
@@ -156,6 +146,7 @@ export default function GalleryPage() {
             key={frame.id}
             drag
             dragMomentum={false}
+            // Logic for rotateY and scale removed
             initial={{ x: frame.x, y: frame.y }}
             animate={{ x: frame.x, y: frame.y }}
             onDragStart={() => (isDragging.current = true)}
@@ -163,8 +154,8 @@ export default function GalleryPage() {
               setTimeout(() => { isDragging.current = false; }, 150);
               handleDragEnd(frame.id, info);
             }}
-            whileDrag={{ scale: 1.05, zIndex: 50 }}
-            className="absolute cursor-grab active:cursor-grabbing"
+            whileDrag={{ scale: 1.05, zIndex: 100 }}
+            className="absolute cursor-grab active:cursor-grabbing z-30"
           >
             <PaintingFrame 
               src={frame.src} 
@@ -181,12 +172,9 @@ export default function GalleryPage() {
           </motion.div>
         ))}
 
-        <div className="absolute bottom-10 text-neutral-300 uppercase text-[10px] font-bold tracking-[0.5em]">
-          Arrange your collection
-        </div>
       </div>
 
-      {/* 3. RENDER THE MODAL ON TOP OF EVERYTHING */}
+      {/* 3. MODAL */}
       {selectedFrame && (
         <PictureModal 
           isOpen={isModalOpen}

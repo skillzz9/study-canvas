@@ -1,8 +1,8 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// --- TYPES ---
+// TYPES
 interface Contributor {
   id: number;
   username: string;
@@ -19,7 +19,7 @@ interface PictureModalProps {
   condition?: "Empty" | "Poor" | "Good" | "Very Good" | "Excellent" | "Near Mint" | "Mint"; 
 }
 
-// --- FAKE DATA FOR DEMO ---
+// FAKE DATA FOR DEMO
 const fakeMeta = {
   timeTaken: "14h 32m 08s", 
 };
@@ -29,7 +29,7 @@ const fakeContributors: Contributor[] = [
   { id: 2, username: "LogicGate_01", avatarUrl: "avatars/avatar2.webp", contributionPercent: 30 },
 ];
 
-// --- COMPONENT ---
+// COMPONENT
 export default function PictureModal({ 
   isOpen, 
   onClose, 
@@ -39,6 +39,16 @@ export default function PictureModal({
   condition = "Mint" 
 }: PictureModalProps) {
   const themeColor = "#000"; 
+
+  // LOCAL STATE FOR EDITABLE TITLE
+  const [localTitle, setLocalTitle] = useState(title);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Sync the local title if the prop changes (e.g., opening a different painting)
+  useEffect(() => {
+    setLocalTitle(title);
+    setIsEditing(false);
+  }, [title, isOpen]);
 
   return (
     <>
@@ -80,7 +90,7 @@ export default function PictureModal({
                 <span className="text-2xl font-black leading-none">×</span>
               </button>
 
-              {/* --- CONTENT LAYOUT --- */}
+              {/* CONTENT LAYOUT */}
               <div className="p-8 md:p-12">
                 
                 {/* 1. THE IMAGE */}
@@ -90,18 +100,36 @@ export default function PictureModal({
                 >
                   <img 
                     src={src} 
-                    alt={title} 
+                    alt={localTitle} 
                     className="w-full h-auto max-h-[60vh] object-contain block mx-auto" 
                   />
                 </div>
 
                 {/* 2. HEADER */}
                 <div className="border-b-4 pb-6 mb-8" style={{ borderColor: themeColor }}>
-                  <h2 className="text-5xl font-black uppercase italic tracking-tighter text-neutral-900 leading-none mb-2">
-                    {title}
-                  </h2>
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      value={localTitle}
+                      onChange={(e) => setLocalTitle(e.target.value)}
+                      onBlur={() => setIsEditing(false)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") setIsEditing(false);
+                      }}
+                      className="text-5xl font-black uppercase italic tracking-tighter text-neutral-900 leading-none mb-2 w-full bg-transparent border-b-2 border-neutral-300 outline-none focus:border-black"
+                    />
+                  ) : (
+                    <h2 
+                      onClick={() => setIsEditing(true)}
+                      className="text-5xl font-black uppercase italic tracking-tighter text-neutral-900 leading-none mb-2 cursor-text hover:opacity-70 transition-opacity"
+                      title="Click to edit title"
+                    >
+                      {localTitle}
+                    </h2>
+                  )}
                   <p className="text-sm font-bold uppercase tracking-[0.3em] text-neutral-400">
-                     Minted: {date}
+                     {date}
                   </p>
                 </div>
 
@@ -132,17 +160,16 @@ export default function PictureModal({
                 {/* 4. CONTRIBUTORS BLOCK */}
                 <div className="border-4 p-8 bg-neutral-50" style={{ borderColor: themeColor }}>
                   <h3 className="text-xl font-black uppercase text-neutral-900 mb-6 tracking-tight">
-                    Vault Contributors
+                    Artists
                   </h3>
 
                   <div className="space-y-6">
                     {fakeContributors.map((con) => (
                       <div key={con.id} className="flex items-center gap-5 border-b border-neutral-200 pb-6 last:border-b-0 last:pb-0">
                         
-                        {/* AVATAR (Simplified Container - Borderless, Circular) */}
+                        {/* AVATAR */}
                         <div 
                           className="w-16 h-16 flex-shrink-0 overflow-hidden"
-                          // Removed: border-4, style, shadow, bg-white from the previous version
                         >
                           <img src={con.avatarUrl} alt={con.username} className="w-full h-full object-cover" />
                         </div>
