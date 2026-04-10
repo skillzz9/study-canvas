@@ -106,32 +106,49 @@ export default function Avatar({
   }, [isBusy, homeY]);
 
   // 4. ARTIST LOOP
-  useEffect(() => {
-    const isJobAvailable = targetBlocksCount > revealedCount;
-    const isMyTurn = revealedCount % Math.max(1, totalWorkers) === myIndex;
+ useEffect(() => {
+  const isJobAvailable = targetBlocksCount > revealedCount;
+  const isMyTurn = revealedCount % Math.max(1, totalWorkers) === myIndex;
 
-    if (isJobAvailable && isMyTurn && !isBusy && shuffledIndices.length > 0) {
-      const runArtistLoop = async () => {
-        setIsBusy(true);
-        const nextGlobalIndex = shuffledIndices[revealedCount];
-        if (nextGlobalIndex === undefined) { setIsBusy(false); return; }
-        
-        const target = getCoords(nextGlobalIndex);
-        moveAvatar(target.x, target.y);
-        await new Promise(r => setTimeout(r, 2000));
-        await new Promise(r => setTimeout(r, 500));
-        setIsPainting(true);
-        await new Promise(r => setTimeout(r, 2000));
-        onBlockComplete?.();
-        setIsPainting(false);
-        await new Promise(r => setTimeout(r, 500));
-        moveAvatar(homeX, homeY);
-        await new Promise(r => setTimeout(r, 2000));
-        setIsBusy(false);
-      };
-      runArtistLoop();
-    }
-  }, [targetBlocksCount, revealedCount, isBusy, myIndex, totalWorkers, shuffledIndices]);
+  if (isJobAvailable && isMyTurn && !isBusy && shuffledIndices.length > 0) {
+    const runArtistLoop = async () => {
+      setIsBusy(true);
+      const nextGlobalIndex = shuffledIndices[revealedCount];
+      if (nextGlobalIndex === undefined) { setIsBusy(false); return; }
+      
+      const target = getCoords(nextGlobalIndex);
+      
+      // 1. Walk to the block
+      moveAvatar(target.x, target.y);
+      await new Promise(r => setTimeout(r, 2000));
+      
+      // 2. Short pause before starting
+      await new Promise(r => setTimeout(r, 500));
+      
+      // 3. START PAINTING (Clouds appear)
+      setIsPainting(true);
+      
+      // 4. Wait for 1 second (halfway through the cloud animation)
+      await new Promise(r => setTimeout(r, 1000));
+      
+      // 5. REVEAL THE BLOCK (Happens behind the clouds)
+      onBlockComplete?.();
+      
+      // 6. Wait another 1 second so the clouds stay visible a bit longer
+      await new Promise(r => setTimeout(r, 1000));
+      
+      // 7. STOP PAINTING (Clouds fade out to reveal the block)
+      setIsPainting(false);
+      
+      // 8. Return home
+      await new Promise(r => setTimeout(r, 500));
+      moveAvatar(homeX, homeY);
+      await new Promise(r => setTimeout(r, 2000));
+      setIsBusy(false);
+    };
+    runArtistLoop();
+  }
+}, [targetBlocksCount, revealedCount, isBusy, myIndex, totalWorkers, shuffledIndices]);
 
   return (
     <div 

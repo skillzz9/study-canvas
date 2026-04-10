@@ -50,6 +50,8 @@ export default function StudyRoom() {
     return [...collaborators].sort((a, b) => a.id.localeCompare(b.id));
   }, [collaborators]);
 
+ const isSessionComplete = totalSessionBlocks > 0 && revealedCount >= totalSessionBlocks;
+ 
   // CONSOLIDATED SYNCING LOGIC
   useEffect(() => {
     const roomRef = doc(db, "rooms", "global-room");
@@ -106,23 +108,24 @@ export default function StudyRoom() {
     };
   }, [user, userData]);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (globalStartTime && roomStatus === "active" && minutes < totalMinutes) {
-      interval = setInterval(() => {
-        const now = Date.now();
-        // Collective time uses globalStartTime (lastStartTime) to track the current worker set
-        const msSinceCheckpoint = now - globalStartTime;
-        
-        const workerMultiplier = Math.max(1, sortedWorkers.length);
-        const collectiveMs = msSinceCheckpoint * workerMultiplier;
-        
-        const totalMs = bankedMs + collectiveMs;
-        setSecondsElapsed(totalMs / 1000);
-      }, 50);
-    }
-    return () => clearInterval(interval);
-  }, [globalStartTime, bankedMs, sortedWorkers.length, roomStatus, minutes, totalMinutes]);
+useEffect(() => {
+  let interval: NodeJS.Timeout;
+  
+  // ADDED: !isSessionComplete to the condition
+  if (globalStartTime && roomStatus === "active" && !isSessionComplete) {
+    interval = setInterval(() => {
+      const now = Date.now();
+      const msSinceCheckpoint = now - globalStartTime;
+      
+      const workerMultiplier = Math.max(1, sortedWorkers.length);
+      const collectiveMs = msSinceCheckpoint * workerMultiplier;
+      
+      const totalMs = bankedMs + collectiveMs;
+      setSecondsElapsed(totalMs / 1000);
+    }, 50);
+  }
+  return () => clearInterval(interval);
+}, [globalStartTime, bankedMs, sortedWorkers.length, roomStatus, isSessionComplete]);
 
   const handleBlockComplete = async () => {
     const roomRef = doc(db, "rooms", "global-room");
@@ -175,7 +178,6 @@ export default function StudyRoom() {
     }
   }, [user, authLoading, router]);
 
-  const isSessionComplete = minutes >= totalMinutes;
 
   useEffect(() => {
     if (isSessionComplete) {
@@ -205,7 +207,10 @@ export default function StudyRoom() {
     );
   }
 
-  const targetBlocksCount = Math.floor((minutes / totalMinutes) * totalSessionBlocks);
+  const targetBlocksCount = Math.min(
+  Math.floor((secondsElapsed / (totalMinutes * 60)) * totalSessionBlocks),
+  totalSessionBlocks
+);
 
 
   

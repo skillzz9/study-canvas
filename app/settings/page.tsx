@@ -84,13 +84,13 @@ export default function SettingsPage() {
       {/* LEFT SIDEBAR */}
       <aside className="w-64 border-r-4 border-neutral-800 bg-white flex flex-col">
         <div className="p-6 border-b-4 border-neutral-800">
-          <h1 className="text-xl font-black uppercase tracking-tighter italic text-neutral-800">Settings</h1>
+          <h1 className="text-xl font-sapce font-black uppercase tracking-tighter italic text-neutral-800">Settings</h1>
         </div>
         
         <nav className="flex-1 p-4 flex flex-col gap-2">
           <button 
             onClick={() => setActiveTab("user")}
-            className={`w-full text-left p-4 rounded-xl font-bold uppercase transition-all border-2 ${activeTab === "user" ? "bg-blue-500 text-white border-neutral-800 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" : "bg-transparent border-transparent hover:bg-neutral-200 text-neutral-600"}`}
+            className={`w-full text-left p-4 rounded-xl font-space uppercase transition-all border-2 ${activeTab === "user" ? "bg-blue-500 text-white border-neutral-800 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" : "bg-transparent border-transparent hover:bg-neutral-200 text-neutral-600"}`}
           >
             User
           </button>
@@ -105,7 +105,7 @@ export default function SettingsPage() {
         <div className="p-4 mt-auto border-t-4 border-neutral-800 flex flex-col gap-2">
           <button 
             onClick={() => router.push("/")}
-            className="w-full py-3 bg-neutral-800 text-white font-bold rounded-xl uppercase text-sm hover:bg-neutral-700 transition-colors"
+            className="w-full py-3 bg-neutral-800 text-white font-space rounded-xl uppercase text-sm hover:bg-neutral-700 transition-colors"
           >
             Back to Room
           </button>
@@ -117,12 +117,12 @@ export default function SettingsPage() {
         
         {activeTab === "user" && (
           <div className="max-w-2xl animate-in fade-in duration-300">
-            <h2 className="text-4xl font-black uppercase mb-8">User Profile</h2>
+            <h2 className="text-4xl font-space uppercase mb-8">User Profile</h2>
             
             <div className="grid gap-6">
               <div className="p-6 bg-neutral-100 border-4 border-neutral-800 rounded-3xl">
-                <label className="block text-xs font-black text-neutral-500 uppercase mb-2">Username</label>
-                <p className="text-2xl font-bold">{userData?.username || "Loading..."}</p>
+                <label className="block text-xs font-space text-neutral-500 uppercase mb-2">Username</label>
+                <p className="text-2xl font-space font-bold">{userData?.username || "Loading..."}</p>
               </div>
 
               <div className="p-6 bg-neutral-100 border-4 border-neutral-800 rounded-3xl">
@@ -148,18 +148,18 @@ export default function SettingsPage() {
             <div className="relative mb-16">
               <div className="absolute inset-0 bg-blue-100 rounded-full blur-3xl opacity-50 scale-150 -z-10"></div>
               
-              <div className="flex flex-col items-center gap-6 p-10 bg-white border-4 border-neutral-800 rounded-[40px] shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
+              <div className="flex flex-col items-center gap-6 p-10 bg-white border-4 border-neutral-800 rounded-[40px] ">
                 <div>
                   <div>
                     <img 
-                      src={userData?.avatar || "/avatars/avatar1.webp"} 
+                      src={userData?.avatar || "/avatars/avatar7.webp"} 
                       alt="Selected Artist" 
                       className="w-56 h-56 object-contain drop-shadow-2xl"
                     />
                   </div>
                 </div>
-                <div className="px-6 py-2 bg-blue-500 border-2 border-neutral-800 rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <p className="font-black uppercase text-white text-sm tracking-widest">Active Artist</p>
+                <div className="px-6 py-2 bg-blue-500 border-2 border-neutral-800 rounded-full">
+                  <p className="font-black uppercase text-white text-sm tracking-widest">Your Artist</p>
                 </div>
               </div>
             </div>
@@ -181,7 +181,7 @@ export default function SettingsPage() {
                     className={`
                       aspect-square p-4 bg-white border-4 border-neutral-800 rounded-2xl transition-all 
                       hover:scale-105
-                      ${isSelected ? 'bg-yellow-300 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]' : 'hover:bg-neutral-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}
+                      ${isSelected ? 'bg-yellow-300 ' : 'hover:bg-neutral-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'}
                     `}
                   >
                     <div className="bop-layer">

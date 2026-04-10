@@ -6,7 +6,6 @@ import { useAuth } from "@/context/AuthContext";
 import { getUserDocument } from "@/lib/userService";
 import { UserProfile } from "@/types";
 import Link from "next/link";
-import ImageUploader from "@/components/ImageUploader";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { joinOrCreateGlobalRoom } from "@/lib/roomService";
@@ -15,7 +14,7 @@ export default function Home() {
 
   // GRID SETTINGS
   // ------------------------------------------------------- //
-const GRID_SIZE = 4; 
+const GRID_SIZE = 2; 
 const TOTAL_LAYERS = 6;
 const TOTAL_BLOCKS = (GRID_SIZE * GRID_SIZE) * TOTAL_LAYERS;
 // ------------------------------------------------------- //
@@ -31,8 +30,8 @@ const TOTAL_BLOCKS = (GRID_SIZE * GRID_SIZE) * TOTAL_LAYERS;
     // gives me loading state when things are loading 
   const [dataLoading, setDataLoading] = useState(true);
 
-  // The image that we upload
-  const [image, setImage] = useState<string | null>(null);
+  // The image that we use (Defaulted to the public test image)
+  const [image, setImage] = useState<string | null>("/test-image.png");
   // The hours we set as input for the study room 
   const [hours, setHours] = useState<number>(1);
   // The minutes we set as input for the study room 
@@ -61,8 +60,8 @@ useEffect(() => {
 // fixes hydration error 
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem("studyImage");
-    if (saved) setImage(saved);
+    // Overriding localStorage with test image path if we want it forced
+    localStorage.setItem("studyImage", "/test-image.png");
   }, []);
 
   // CHECKS THE USER AND GETS THE USERDATA
@@ -181,14 +180,14 @@ useEffect(() => {
   </svg>
 </Link>
 
-      <div className="w-full max-w-md rounded-3xl border-4 border-neutral-800 bg-white p-8 shadow-[8px_8px_0px_0px_rgba(61,61,61,1)]">
+      <div className="w-full max-w-md rounded-3xl border-4 border-neutral-800 bg-white p-8">
         <header className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-neutral-800 uppercase tracking-tight">
             {isRoomActive ? "A session is in progress!" : `What should we draw today, ${userData?.username || "Student"}?`}
           </h1>
         </header>
 
-        <ImageUploader image={image} onUpload={handleImageSave} onClear={clearImage} />
+        {/* ImageUploader removed here to hide upload UI */}
 
         <div className="flex flex-col gap-4">
           {image && (
