@@ -15,7 +15,7 @@ interface FrameData {
 }
 
 const INITIAL_FRAMES: FrameData[] = [
-  { id: 1, x: -250, y: 0, src: "/test.png", title: "type shit", date: "April 2nd 2026" },
+  { id: 1, x: -250, y: 0, src: "/test.png", title: "BIG BIRD", date: "April 10th 2026" },
 ];
 
 export default function GalleryPage() {

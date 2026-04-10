@@ -84,7 +84,7 @@ export default function SettingsPage() {
       {/* LEFT SIDEBAR */}
       <aside className="w-64 border-r-4 border-neutral-800 bg-white flex flex-col">
         <div className="p-6 border-b-4 border-neutral-800">
-          <h1 className="text-xl font-sapce font-black uppercase tracking-tighter italic text-neutral-800">Settings</h1>
+          <h1 className="text-xl font-space font-black uppercase tracking-tighter italic text-neutral-800">Settings</h1>
         </div>
         
         <nav className="flex-1 p-4 flex flex-col gap-2">
@@ -172,6 +172,7 @@ export default function SettingsPage() {
 
             {/* GRID OPTIONS */}
             <div className="w-full grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-10 pb-20">
+              {/* 1. RENDER UNLOCKED AVATARS */}
               {avatarOptions.map((name) => {
                 const isSelected = userData?.avatar.includes(name);
                 return (
@@ -196,6 +197,27 @@ export default function SettingsPage() {
                   </button>
                 );
               })}
+
+              {/* 2. DEMO: GENERATE LOCKED SECRET ARTISTS (Hardcoded progression) */}
+              {[3, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75].map((requirement) => (
+                <div key={requirement} className="flex flex-col items-center gap-4">
+                  <div className="w-full aspect-square p-4 bg-neutral-50 border-4 border-dashed border-neutral-300 rounded-2xl flex items-center justify-center opacity-60">
+                    <div className="bop-layer">
+                      <div className="spin-layer flex items-center justify-center">
+                        <span className="text-6xl font-black text-neutral-300">?</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* UNLOCK REQUIREMENT LABEL */}
+                  <div className="text-center">
+                    <p className="text-[10px] font-black uppercase text-neutral-400 leading-tight tracking-tighter">
+                      Unlock when you reach<br/>
+                      <span className="text-blue-400/60">{requirement} pictures in gallery</span>
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

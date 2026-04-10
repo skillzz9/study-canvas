@@ -72,7 +72,7 @@ export default function Level({ imageSrc, level }: LevelProps) {
           />
           
           <div className="absolute inset-0 z-20 mix-blend-multiply">
-            <P5FullSketch detailLevel={2} imageSrc={imageSrc} />
+            <P5FullSketch detailLevel={3} imageSrc={imageSrc} />
           </div>
         </div>
       );
@@ -100,7 +100,7 @@ export default function Level({ imageSrc, level }: LevelProps) {
 
           {/* 3. TOP LAYER: The Detailed Sketch */}
           <div className="absolute inset-0 z-20 mix-blend-multiply">
-            <P5FullSketch detailLevel={2} imageSrc={imageSrc} />
+            <P5FullSketch detailLevel={3} imageSrc={imageSrc} />
           </div>
         </div>
       );
