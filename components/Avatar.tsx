@@ -45,9 +45,15 @@ export default function Avatar({
   const [state, setState] = useState({ x: homeX, y: homeY, facingLeft: false });
 
   // Trigger zoom effect on mount
-  useEffect(() => {
+useEffect(() => {
+  // We wait 100ms to ensure the browser paints the 'scale(0)' state first.
+  // This "kickstarts" the CSS transition.
+  const timer = setTimeout(() => {
     setIsMounted(true);
-  }, []);
+  }, 100);
+
+  return () => clearTimeout(timer);
+}, []);
 
   // 1. CONDITIONAL STOPWATCH LOGIC
   useEffect(() => {

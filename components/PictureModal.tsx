@@ -21,12 +21,12 @@ interface PictureModalProps {
 
 // FAKE DATA FOR DEMO
 const fakeMeta = {
-  timeTaken: "14h 32m 08s", 
+  timeTaken: "1h", 
 };
 
 const fakeContributors: Contributor[] = [
-  { id: 1, username: "Alpha_Synth", avatarUrl: "avatars/avatar1.webp", contributionPercent: 45 },
-  { id: 2, username: "LogicGate_01", avatarUrl: "avatars/avatar2.webp", contributionPercent: 30 },
+  { id: 1, username: "joc", avatarUrl: "avatars/avatar7.webp", contributionPercent: 50 },
+  { id: 2, username: "big bird", avatarUrl: "avatars/avatar9.webp", contributionPercent: 50 },
 ];
 
 // COMPONENT
@@ -177,7 +177,7 @@ export default function PictureModal({
                         {/* USERNAME & CONTRIBUTION % */}
                         <div className="flex-grow grid grid-cols-2 items-center gap-4">
                           <p className="text-lg font-bold text-neutral-900 font-mono tracking-tight">
-                            @{con.username}
+                            {con.username}
                           </p>
                           <div className="text-right flex items-center justify-end gap-3">
                               <div className="w-32 h-2 bg-neutral-200 border border-black relative overflow-hidden hidden md:block">

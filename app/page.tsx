@@ -14,8 +14,8 @@ export default function Home() {
 
   // GRID SETTINGS
   // ------------------------------------------------------- //
-const GRID_SIZE = 2; 
-const TOTAL_LAYERS = 6;
+const GRID_SIZE = 6; 
+const TOTAL_LAYERS = 5;
 const TOTAL_BLOCKS = (GRID_SIZE * GRID_SIZE) * TOTAL_LAYERS;
 // ------------------------------------------------------- //
 
@@ -183,7 +183,7 @@ useEffect(() => {
       <div className="w-full max-w-md rounded-3xl border-4 border-neutral-800 bg-white p-8">
         <header className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-neutral-800 uppercase tracking-tight">
-            {isRoomActive ? "A session is in progress!" : `What should we draw today, ${userData?.username || "Student"}?`}
+            {isRoomActive ? "A session is in progress!" : `Should we lock in, ${userData?.username || "Student"}?`}
           </h1>
         </header>
 

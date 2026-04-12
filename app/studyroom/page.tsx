@@ -231,11 +231,11 @@ useEffect(() => {
     <main className="min-h-screen bg-paper flex flex-col items-center justify-center">
       
       <div className="relative flex flex-col items-center pb-40">
-                <div className="absolute -top-4 -right-4 z-40 bg-paper border-4 border-neutral-800 px-3 py-1 rounded-xl ">
+                {/* <div className="absolute -top-4 -right-4 z-40 bg-paper border-4 border-neutral-800 px-3 py-1 rounded-xl ">
     <span className="text-sm font-black uppercase text-neutral-800 tabular-nums">
       {totalSessionBlocks > 0 ? Math.round((revealedCount / totalSessionBlocks) * 100) : 0}%
     </span>
-  </div>
+  </div> */}
         <div className="w-[400px] h-[400px] relative shadow-2xl bg-white rounded-2xl border-4 border-neutral-800 overflow-hidden">
           
           <div className="absolute inset-0 z-0">
@@ -290,6 +290,7 @@ useEffect(() => {
         )}
 
         <Desk topPosition={600} />
+        
       </div>
     </main>
   );
