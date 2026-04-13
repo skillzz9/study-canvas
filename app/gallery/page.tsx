@@ -15,12 +15,16 @@ interface FrameData {
 }
 
 const INITIAL_FRAMES: FrameData[] = [
-  { id: 1, x: -250, y: 0, src: "/finalpainting.png", title: "OH HELL NAH", date: "April 10th 2026" },
-  { id: 2, x: -250, y: 0, src: "/finalpainting2.png", title: "MATCHA!?", date: "April 11th 2026" },
-  { id: 3, x: -250, y: 0, src: "/finalpainting4.png", title: "may i?", date: "April 11th 2026" },
-  { id: 4, x: -250, y: 0, src: "/finalpainting5.png", title: "peace", date: "April 12th 2026" },
-  { id: 5, x: -250, y: 0, src: "/finalpainting6.png", title: "peace", date: "April 13th 2026" },
-  { id: 6, x: -250, y: 0, src: "/finalpainting7.png", title: "oh hell nah lil bruh", date: "April 13th 2026" },
+  // { id: 1, x: -250, y: 0, src: "/finalpainting.png", title: "OH HELL NAH", date: "April 10th 2026" },
+  // { id: 2, x: -250, y: 0, src: "/finalpainting2.png", title: "MATCHA!?", date: "April 11th 2026" },
+  // { id: 3, x: -250, y: 0, src: "/finalpainting4.png", title: "may i?", date: "April 11th 2026" },
+  // { id: 4, x: -250, y: 0, src: "/finalpainting5.png", title: "peace", date: "April 12th 2026" },
+  // { id: 5, x: -250, y: 0, src: "/finalpainting6.png", title: "peace", date: "April 13th 2026" },
+  // { id: 6, x: -250, y: 0, src: "/finalpainting7.png", title: "oh hell nah lil bruh", date: "April 13th 2026" },
+  { id: 1, x: -250, y: 0, src: "/finalpainting8.png", title: "its okay", date: "April 10th 2026" },
+  { id: 2, x: -250, y: 0, src: "/finalpainting9.png", title: "you got this", date: "April 10th 2026" },
+  { id: 3, x: -250, y: 0, src: "/finalpainting10.png", title: "i love u", date: "April 10th 2026" },
+  { id: 4, x: -250, y: 0, src: "/finalpainting11.png", title: "work work!", date: "April 10th 2026" }
 ];
 
 export default function GalleryPage() {

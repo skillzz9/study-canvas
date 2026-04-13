@@ -15,6 +15,7 @@ import { UserProfile } from "@/types";
 import { updatePresence, leaveGlobalRoom } from "@/lib/roomService";
 
 export default function StudyRoom() {
+  const TIMELAPSE_MULTIPLIER = 3;
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [userData, setUserData] = useState<UserProfile | null>(null);
@@ -118,7 +119,7 @@ useEffect(() => {
       const msSinceCheckpoint = now - globalStartTime;
       
       const workerMultiplier = Math.max(1, sortedWorkers.length);
-      const collectiveMs = msSinceCheckpoint * workerMultiplier;
+      const collectiveMs = msSinceCheckpoint * workerMultiplier * TIMELAPSE_MULTIPLIER;
       
       const totalMs = bankedMs + collectiveMs;
       setSecondsElapsed(totalMs / 1000);

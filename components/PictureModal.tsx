@@ -25,8 +25,8 @@ const fakeMeta = {
 };
 
 const fakeContributors: Contributor[] = [
-  { id: 1, username: "joc", avatarUrl: "avatars/avatar7.webp", contributionPercent: 50 },
-  { id: 2, username: "big bird", avatarUrl: "avatars/avatar9.webp", contributionPercent: 50 },
+  { id: 1, username: "poppy", avatarUrl: "avatars/avatar7.webp", contributionPercent: 50 },
+  { id: 2, username: "bunny", avatarUrl: "avatars/avatar8.webp", contributionPercent: 50 },
 ];
 
 // COMPONENT
