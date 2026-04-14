@@ -14,9 +14,9 @@ import {
  * Banks the current stopwatch progress multiplied by the current number of workers
  * before changing the avatar count to ensure "Collective Study" accuracy.
  */
-export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number, totalMinutes: number, gridSize: number, 
+export const joinOrCreateGlobalRoom = async (uid: string, paintingId: string, totalBlocks: number, totalMinutes: number, gridSize: number, 
   totalLayers: number) => {
-  const roomRef = doc(db, "rooms", "global-room");
+  const roomRef = doc(db, "paintings", paintingId);
 
   return await runTransaction(db, async (transaction) => {
     const roomSnap = await transaction.get(roomRef);
@@ -78,8 +78,8 @@ export const joinOrCreateGlobalRoom = async (uid: string, totalBlocks: number, t
   });
 };
 
-export const startGlobalRoom = async () => {
-  const roomRef = doc(db, "rooms", "global-room");
+export const startGlobalRoom = async (paintingId: string) => {
+  const roomRef = doc(db, "paintings", paintingId);
   const now = serverTimestamp();
   await updateDoc(roomRef, {
     status: "active",
@@ -93,9 +93,9 @@ export const startGlobalRoom = async () => {
  * Handles a user leaving. 
  * Banks the multiplied "Collective Time" before the avatar count drops.
  */
-export const leaveGlobalRoom = async (uid: string) => {
-  const roomRef = doc(db, "rooms", "global-room");
-  const presenceRef = doc(db, "rooms", "global-room", "presence", uid);
+export const leaveGlobalRoom = async (uid: string, paintingId: string) => {
+  const roomRef = doc(db, "paintings", paintingId);
+  const presenceRef = doc(db, "paintings", paintingId, "presence", uid);
 
   await deleteDoc(presenceRef);
 
@@ -127,8 +127,8 @@ export const leaveGlobalRoom = async (uid: string) => {
 /**
  * Updates the user's presence so others can see their avatar.
  */
-export const updatePresence = async (user: any, userData: any, isInitialJoin: boolean = false) => {
-  const presenceRef = doc(db, "rooms", "global-room", "presence", user.uid);
+export const updatePresence = async (user: any, userData: any, paintingId: string, isInitialJoin: boolean = false) => {
+  const presenceRef = doc(db, "paintings", paintingId, "presence", user.uid);
   
   const data: any = {
     username: userData?.username || "Guest",

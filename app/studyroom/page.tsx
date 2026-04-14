@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import confetti from 'canvas-confetti';
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { doc, onSnapshot, collection, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Level from "@/components/Level";
@@ -13,37 +13,39 @@ import { useAuth } from "@/context/AuthContext";
 import { getUserDocument } from "@/lib/userService";
 import { UserProfile } from "@/types";
 import { updatePresence, leaveGlobalRoom } from "@/lib/roomService";
-import Link from "next/link"; // Added Link
-import { useTheme } from "next-themes"; // Added useTheme
+import Link from "next/link"; 
+import { useTheme } from "next-themes"; 
 
-export default function StudyRoom() {
-  const { theme, setTheme } = useTheme(); // Initialize theme logic
-  const TIMELAPSE_MULTIPLIER = 3;
+// Create an inner component to handle the Search Params (Next.js requires this to be wrapped in Suspense)
+function StudyRoomContent() {
+  const { theme, setTheme } = useTheme(); 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const [userData, setUserData] = useState<UserProfile | null>(null);
+  
+  // 1. GET URL PARAMS
+  const paintingId = searchParams.get("paintingId");
+  const goalMinutes = searchParams.get("goal");
 
+  const [userData, setUserData] = useState<UserProfile | null>(null);
   const [dbShuffledIndices, setDbShuffledIndices] = useState<number[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [studyImage, setStudyImage] = useState<string | null>(null);
-  const [totalMinutes, setTotalMinutes] = useState<number>(30); 
+  const [totalMinutes, setTotalMinutes] = useState<number>(Number(goalMinutes) || 60); 
+  const [targetHours, setTargetHours] = useState<number>(10);
   
   const [secondsElapsed, setSecondsElapsed] = useState(0);
-  const minutes = secondsElapsed / 60;
-
   const [revealedCount, setRevealedCount] = useState(0);
-
   const [collaborators, setCollaborators] = useState<any[]>([]);
   const [bankedMs, setBankedMs] = useState(0);
   
   const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
   const [stableSessionStart, setStableSessionStart] = useState<number | null>(null);
-  
-  const [roomStatus, setRoomStatus] = useState("idle");
+  const [roomStatus, setRoomStatus] = useState("active"); // Default to active for the demo
 
-  const [gridSize, setGridSize] = useState(2); 
-  const [totalLayers, setTotalLayers] = useState(6);
+  const [gridSize, setGridSize] = useState(6); // Changed to 6 based on your paintingService
+  const [totalLayers, setTotalLayers] = useState(5); // Changed to 5 based on your paintingService
 
   const blocksPerLayer = gridSize * gridSize;
   const totalSessionBlocks = blocksPerLayer * totalLayers;
@@ -53,32 +55,47 @@ export default function StudyRoom() {
   }, [collaborators]);
 
   const isSessionComplete = totalSessionBlocks > 0 && revealedCount >= totalSessionBlocks;
- 
-  // Function to leave room and go home
+
   const handleExitRoom = async () => {
-    if (user) {
-      await leaveGlobalRoom(user.uid);
+    if (user && paintingId) {
+      // FIX: Pass paintingId so it deletes from the correct room
+      await leaveGlobalRoom(user.uid, paintingId); 
       router.push("/");
     }
   };
 
+  // 2. LISTEN TO THE SPECIFIC PAINTING DOCUMENT
   useEffect(() => {
-    const roomRef = doc(db, "rooms", "global-room");
-    const unsubscribe = onSnapshot(roomRef, (snapshot) => {
+    if (!paintingId) {
+      router.push("/");
+      return;
+    }
+
+    const paintingRef = doc(db, "paintings", paintingId);
+    const unsubscribe = onSnapshot(paintingRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        setRevealedCount(data.revealedCount || 0); 
+        
+        // Map database fields to our states
+        setRevealedCount(data.revealedBlocks || 0); 
+setDbShuffledIndices(data.shuffledIndices || []);
+setStudyImage(data.imageUrl || "/test.png");
+setTargetHours(data.targetHours || 10);
+        
+        // Timer Sync Logic (Fallback for now)
         const currentBankedMs = data.accumulatedMs || 0;
         setBankedMs(currentBankedMs); 
         setSecondsElapsed(currentBankedMs / 1000);
-        setTotalMinutes(data.totalMinutes || 30);
-        setDbShuffledIndices(data.shuffledIndices || []);
-        setRoomStatus(data.status || "idle"); 
-        if (data.gridSize) setGridSize(data.gridSize);
-        if (data.totalLayers) setTotalLayers(data.totalLayers);
+        
+        if (data.status) setRoomStatus(data.status); 
+        
         if (data.lastStartTime) {
           setGlobalStartTime(data.lastStartTime.toDate().getTime());
+        } else {
+           // Start timer immediately if no time exists
+           setGlobalStartTime(Date.now());
         }
+        
         const sessionAnchor = data.sessionStartedAt || data.lastStartTime;
         if (sessionAnchor) {
           setStableSessionStart(sessionAnchor.toDate().getTime());
@@ -86,12 +103,16 @@ export default function StudyRoom() {
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [paintingId, router]);
   
+  // 3. LISTEN FOR PRESENCE (AVATARS) ON THIS SPECIFIC PAINTING
   useEffect(() => {
-    if (!user || !userData) return;
-    updatePresence(user, userData);
-    const presenceRef = collection(db, "rooms", "global-room", "presence");
+    if (!user || !userData || !paintingId) return;
+    
+    // FIX: Pass paintingId to updatePresence
+    updatePresence(user, userData, paintingId); 
+    
+    const presenceRef = collection(db, "paintings", paintingId, "presence");
     const unsubscribe = onSnapshot(presenceRef, (snapshot) => {
       const players = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -100,14 +121,16 @@ export default function StudyRoom() {
       setCollaborators(players);
     });
     return () => {
-      leaveGlobalRoom(user.uid);
+      // FIX: Pass paintingId to leaveGlobalRoom
+      leaveGlobalRoom(user.uid, paintingId);
       unsubscribe();
     };
-  }, [user, userData]);
+  }, [user, userData, paintingId]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (globalStartTime && roomStatus === "active" && !isSessionComplete) {
+    // FIX: Allow timer to run if room is active OR in-progress
+    if (globalStartTime && (roomStatus === "active" || roomStatus === "in-progress") && !isSessionComplete) {
       interval = setInterval(() => {
         const now = Date.now();
         const msSinceCheckpoint = now - globalStartTime;
@@ -120,33 +143,14 @@ export default function StudyRoom() {
     return () => clearInterval(interval);
   }, [globalStartTime, bankedMs, sortedWorkers.length, roomStatus, isSessionComplete]);
 
+  // 4. SAVE PROGRESS TO THE CORRECT DATABASE
   const handleBlockComplete = async () => {
-    const roomRef = doc(db, "rooms", "global-room");
-    await updateDoc(roomRef, {
-      revealedCount: revealedCount + 1
+    if (!paintingId) return;
+    const paintingRef = doc(db, "paintings", paintingId);
+    await updateDoc(paintingRef, {
+      revealedBlocks: revealedCount + 1
     });
   };
-
-  useEffect(() => {
-    const savedImage = "test.png";
-    const savedTime = localStorage.getItem("studyTime"); 
-    if (!savedImage) {
-      router.push("/"); 
-    } else {
-      fetch(savedImage)
-        .then((res) => res.blob())
-        .then((blob) => {
-          const fastUrl = URL.createObjectURL(blob);
-          setStudyImage(fastUrl);
-        });
-      if (savedTime) setTotalMinutes(Number(savedTime));
-    }
-    return () => {
-      if (studyImage && studyImage.startsWith("blob:")) {
-        URL.revokeObjectURL(studyImage);
-      }
-    };
-  }, [router]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -170,12 +174,7 @@ export default function StudyRoom() {
 
   useEffect(() => {
     if (isSessionComplete) {
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#22c55e', '#ef4444', '#eab308', '#3b82f6']
-      });
+      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#22c55e', '#ef4444', '#eab308', '#3b82f6'] });
       const interval = setInterval(() => {
         confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 } });
         confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1 } });
@@ -186,26 +185,28 @@ export default function StudyRoom() {
 
   const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
 
-  if (authLoading || dataLoading || !studyImage) {
+  if (authLoading || dataLoading || !studyImage || dbShuffledIndices.length === 0) {
     return (
       <main className="min-h-screen bg-app-bg flex items-center justify-center font-space">
-        <div className="font-bold text-xl uppercase tracking-widest animate-pulse">Entering Room...</div>
+        <div className="font-bold text-xl uppercase tracking-widest animate-pulse">Entering Studio...</div>
       </main>
     );
   }
+const totalPaintingSeconds = targetHours * 3600; 
+const secondsPerBlock = totalPaintingSeconds / totalSessionBlocks;
 
-  const targetBlocksCount = Math.min(
-    Math.floor((secondsElapsed / (totalMinutes * 60)) * totalSessionBlocks),
-    totalSessionBlocks
-  );
+// Calculate how many blocks should be revealed based on total time spent
+const targetBlocksCount = Math.min(
+  Math.floor(secondsElapsed / secondsPerBlock),
+  totalSessionBlocks
+);
   
   const handleFinishSession = async () => {
     try {
-      await deleteDoc(doc(db, "rooms", "global-room"));
+      // Instead of deleting the room, we just go home and leave the painting saved
       router.push("/"); 
     } catch (error) {
-      console.error("Failed to delete room:", error);
-      alert("Error ending session. Please try again.");
+      console.error("Error ending session:", error);
     }
   };
 
@@ -215,32 +216,16 @@ export default function StudyRoom() {
   return (
     <main className="min-h-screen bg-app-bg flex flex-col items-center justify-center transition-colors duration-300">
       
-      {/* 1. FIXED UI BUTTONS (Aligned with Home Page) */}
       <div className="absolute top-6 left-6 z-50 flex gap-4">
-        {/* EXIT/HOME BUTTON */}
-        <button 
-          onClick={handleExitRoom}
-          className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-app-text flex items-center justify-center"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-          </svg>
+        <button onClick={handleExitRoom} className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-app-text flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
         </button>
 
-        {/* THEME TOGGLE BUTTON */}
-        <button 
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-app-text flex items-center justify-center"
-        >
+        <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-app-text flex items-center justify-center">
           {theme === "dark" ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
           )}
         </button>
       </div>
@@ -291,14 +276,19 @@ export default function StudyRoom() {
               globalStartTime={stableSessionStart}
             />
           ))
-        ) : (
-          <div className="absolute bottom-20 text-[10px] text-neutral-400 animate-pulse uppercase tracking-widest">
-            Connecting to room...
-          </div>
-        )}
+        ) : null}
 
         <Desk topPosition={600} />
       </div>
     </main>
+  );
+}
+
+// Wrap in Suspense boundary required by Next.js useSearchParams
+export default function StudyRoom() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-app-bg flex items-center justify-center font-space font-bold uppercase">Loading...</div>}>
+      <StudyRoomContent />
+    </Suspense>
   );
 }

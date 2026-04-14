@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import GridRevealMask from "@/components/GridRevealMask";
+import Level from "@/components/Level"; 
 
 interface PaintingFrameProps {
   src: string;
@@ -21,50 +22,63 @@ export default function PaintingFrame({
 }: PaintingFrameProps) {
   
   const percentage = Math.round((revealedCount / totalBlocks) * 100);
-  const isBrandNew = revealedCount === 0;
+  const isFinished = revealedCount >= totalBlocks;
+
+  const gridSize = 6;
+  const blocksPerLayer = gridSize * gridSize;
+  const totalLayers = Math.floor(totalBlocks / blocksPerLayer); 
+  
+  const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
+  
+  // THE FIX: Base level starts at 1 (the sketch), Top level starts at 2
+  const baseLevel = isFinished ? 7 : (currentLayerIndex + 1);
+  const topLevel = currentLayerIndex + 2;
 
   return (
     <div 
       onClick={onClick}
-      className="group relative flex flex-col items-center cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+      className="flex flex-col items-center gap-3 cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
     >
       
-      {/* 1. HOVER TITLE (TOP) - Plain Text */}
-      <div className="absolute -top-6 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-20 pointer-events-none">
-        <span className="text-[12px] font-black uppercase text-app-text tracking-widest truncate max-w-[240px]">
-          {title}
-        </span>
-      </div>
+      {/* 1. STATIC TITLE (TOP) */}
+      <span className="text-[12px] font-black uppercase text-app-text tracking-widest truncate max-w-[240px] text-center">
+        {title}
+      </span>
 
       {/* 2. CORNER-TO-CORNER WOOD FRAME */}
-      {/* Using #5C4033 for a dark walnut wood look. You can change this hex code to make it lighter/darker */}
-      <div className="relative w-[240px] h-[240px] border-[14px] border-[#5C4033] bg-app-bg">
+      <div className="relative w-[240px] h-[240px] border-[14px] border-[#5C4033] bg-app-bg shadow-[4px_4px_10px_rgba(0,0,0,0.1)]">
         
         {/* CANVAS AREA */}
         <div className="absolute inset-0 bg-app-bg overflow-hidden">
-          {isBrandNew ? (
-            <div className="w-full h-full flex items-center justify-center bg-app-bg/50 bg-white">
+          
+          {/* BACKGROUND LAYER (The sketch or the last completed layer) */}
+          <div className="absolute inset-0 z-0">
+            <Level imageSrc={src} level={baseLevel as any} />
+          </div>
+
+          {/* ACTIVE PAINTING LAYER (What the mask is currently revealing) */}
+          {!isFinished && (
+            <div className="absolute inset-0 z-10">
+              <GridRevealMask 
+                revealedCount={revealedCount} 
+                gridSize={gridSize} 
+                fullShuffledIndices={shuffledIndices}
+                currentLayerIndex={currentLayerIndex} 
+                isStatic={true} 
+                allLayers={false} 
+              >
+                <Level imageSrc={src} level={topLevel as any} />
+              </GridRevealMask>
             </div>
-          ) : (
-            <GridRevealMask 
-              revealedCount={revealedCount} 
-              gridSize={6} 
-              fullShuffledIndices={shuffledIndices}
-              isStatic={true} 
-              allLayers={true}
-            >
-              <img src={src} className="w-full h-full object-cover" alt={title} />
-            </GridRevealMask>
           )}
+
         </div>
       </div>
 
-      {/* 3. HOVER PROGRESS (BOTTOM) - Plain Text */}
-      <div className="absolute -bottom-6 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-y-2 group-hover:translate-y-0 z-20 pointer-events-none">
-        <span className="text-[10px] font-bold uppercase text-app-text tracking-widest">
-          {percentage}% Complete
-        </span>
-      </div>
+      {/* 3. STATIC PROGRESS (BOTTOM) */}
+      <span className="text-[10px] font-bold uppercase text-app-text tracking-widest text-center opacity-60">
+        {percentage}% Complete
+      </span>
 
     </div>
   );
