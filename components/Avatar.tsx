@@ -45,15 +45,15 @@ export default function Avatar({
   const [state, setState] = useState({ x: homeX, y: homeY, facingLeft: false });
 
   // Trigger zoom effect on mount
-useEffect(() => {
-  // We wait 100ms to ensure the browser paints the 'scale(0)' state first.
-  // This "kickstarts" the CSS transition.
-  const timer = setTimeout(() => {
-    setIsMounted(true);
-  }, 100);
+  useEffect(() => {
+    // We wait 100ms to ensure the browser paints the 'scale(0)' state first.
+    // This "kickstarts" the CSS transition.
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 100);
 
-  return () => clearTimeout(timer);
-}, []);
+    return () => clearTimeout(timer);
+  }, []);
 
   // 1. CONDITIONAL STOPWATCH LOGIC
   useEffect(() => {
@@ -77,7 +77,7 @@ useEffect(() => {
     };
 
     tick();
-    // CHANGED: 1000ms -> 100ms for high-frequency syncing
+    // 100ms for high-frequency syncing
     const interval = setInterval(tick, 100); 
     return () => clearInterval(interval);
   }, [lastSeen, roomStatus, globalStartTime]);
@@ -106,64 +106,64 @@ useEffect(() => {
     const idleInterval = setInterval(() => {
       const targetX = Math.random() * 300;
       moveAvatar(targetX, homeY);
-    }, 4000);
+    }, 1333); // CHANGED: 4000ms -> 1333ms
 
     return () => clearInterval(idleInterval);
   }, [isBusy, homeY]);
 
   // 4. ARTIST LOOP
- useEffect(() => {
-  const isJobAvailable = targetBlocksCount > revealedCount;
-  const isMyTurn = revealedCount % Math.max(1, totalWorkers) === myIndex;
+  useEffect(() => {
+    const isJobAvailable = targetBlocksCount > revealedCount;
+    const isMyTurn = revealedCount % Math.max(1, totalWorkers) === myIndex;
 
-  if (isJobAvailable && isMyTurn && !isBusy && shuffledIndices.length > 0) {
-    const runArtistLoop = async () => {
-      setIsBusy(true);
-      const nextGlobalIndex = shuffledIndices[revealedCount];
-      if (nextGlobalIndex === undefined) { setIsBusy(false); return; }
-      
-      const target = getCoords(nextGlobalIndex);
-      
-      // 1. Walk to the block
-      moveAvatar(target.x, target.y);
-      await new Promise(r => setTimeout(r, 2000));
-      
-      // 2. Short pause before starting
-      await new Promise(r => setTimeout(r, 500));
-      
-      // 3. START PAINTING (Clouds appear)
-      setIsPainting(true);
-      
-      // 4. Wait for 1 second (halfway through the cloud animation)
-      await new Promise(r => setTimeout(r, 1000));
-      
-      // 5. REVEAL THE BLOCK (Happens behind the clouds)
-      onBlockComplete?.();
-      
-      // 6. Wait another 1 second so the clouds stay visible a bit longer
-      await new Promise(r => setTimeout(r, 1000));
-      
-      // 7. STOP PAINTING (Clouds fade out to reveal the block)
-      setIsPainting(false);
-      
-      // 8. Return home
-      await new Promise(r => setTimeout(r, 500));
-      moveAvatar(homeX, homeY);
-      await new Promise(r => setTimeout(r, 2000));
-      setIsBusy(false);
-    };
-    runArtistLoop();
-  }
-}, [targetBlocksCount, revealedCount, isBusy, myIndex, totalWorkers, shuffledIndices]);
+    if (isJobAvailable && isMyTurn && !isBusy && shuffledIndices.length > 0) {
+      const runArtistLoop = async () => {
+        setIsBusy(true);
+        const nextGlobalIndex = shuffledIndices[revealedCount];
+        if (nextGlobalIndex === undefined) { setIsBusy(false); return; }
+        
+        const target = getCoords(nextGlobalIndex);
+        
+        // 1. Walk to the block
+        moveAvatar(target.x, target.y);
+        await new Promise(r => setTimeout(r, 666)); // CHANGED: 2000ms -> 666ms
+        
+        // 2. Short pause before starting
+        await new Promise(r => setTimeout(r, 166)); // CHANGED: 500ms -> 166ms
+        
+        // 3. START PAINTING (Clouds appear)
+        setIsPainting(true);
+        
+        // 4. Wait (halfway through the cloud animation)
+        await new Promise(r => setTimeout(r, 333)); // CHANGED: 1000ms -> 333ms
+        
+        // 5. REVEAL THE BLOCK (Happens behind the clouds)
+        onBlockComplete?.();
+        
+        // 6. Wait so the clouds stay visible a bit longer
+        await new Promise(r => setTimeout(r, 333)); // CHANGED: 1000ms -> 333ms
+        
+        // 7. STOP PAINTING (Clouds fade out to reveal the block)
+        setIsPainting(false);
+        
+        // 8. Return home
+        await new Promise(r => setTimeout(r, 166)); // CHANGED: 500ms -> 166ms
+        moveAvatar(homeX, homeY);
+        await new Promise(r => setTimeout(r, 666)); // CHANGED: 2000ms -> 666ms
+        setIsBusy(false);
+      };
+      runArtistLoop();
+    }
+  }, [targetBlocksCount, revealedCount, isBusy, myIndex, totalWorkers, shuffledIndices]);
 
   return (
     <div 
       className="absolute top-0 left-0 z-50 pointer-events-none flex flex-col items-center"
       style={{ 
-        // Logic: Added scale and opacity for the join animation
         transform: `translate3d(${state.x}px, ${state.y}px, 0) translate(-50%, -50%) scale(${isMounted ? 1 : 0})`,
         opacity: isMounted ? 1 : 0,
-        transition: "transform 2000ms ease-in-out, opacity 2000ms ease-in-out",
+        // CHANGED: 2000ms -> 666ms for physical movement speed
+        transition: "transform 666ms ease-in-out, opacity 666ms ease-in-out",
         willChange: "transform, opacity"
       }}
     >
@@ -185,6 +185,8 @@ useEffect(() => {
         />
         <img 
           src={avatarSrc} 
+          // Note: Because CSS animations like animate-bounce dictate their own speed in tailwind configs, 
+          // the bounce might look a bit slow compared to the movement. 
           className={`w-17 h-17 object-contain ${isBusy && state.y < 450 ? "animate-bounce" : ""}`} 
         />
       </div>

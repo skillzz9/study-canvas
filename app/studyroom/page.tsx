@@ -129,13 +129,19 @@ setTargetHours(data.targetHours || 10);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    // FIX: Allow timer to run if room is active OR in-progress
+    
+    // 1. ADD THE DEMO MULTIPLIER HERE
+    const TIMELAPSE_MULTIPLIER = 3; 
+
     if (globalStartTime && (roomStatus === "active" || roomStatus === "in-progress") && !isSessionComplete) {
       interval = setInterval(() => {
         const now = Date.now();
         const msSinceCheckpoint = now - globalStartTime;
         const workerMultiplier = Math.max(1, sortedWorkers.length);
-        const collectiveMs = msSinceCheckpoint * workerMultiplier;
+        
+        // 2. MULTIPLY THE REAL TIME BY YOUR DEMO SPEED
+        const collectiveMs = (msSinceCheckpoint * TIMELAPSE_MULTIPLIER) * workerMultiplier;
+        
         const totalMs = bankedMs + collectiveMs;
         setSecondsElapsed(totalMs / 1000);
       }, 50);
@@ -210,7 +216,7 @@ const targetBlocksCount = Math.min(
     }
   };
 
-  const baseLevel = isSessionComplete ? 7 : (currentLayerIndex + 1) as any;
+  const baseLevel = isSessionComplete ? 6 : (currentLayerIndex + 1) as any;
   const topLevel = (currentLayerIndex + 2) as any;
 
   return (

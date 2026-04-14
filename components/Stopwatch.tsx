@@ -24,17 +24,12 @@ export default function Stopwatch({
   totalSessionBlocks
 }: StopwatchProps) {
   
-  const totalSecondsGoal = totalMinutes * 60;
-  const remainingSeconds = Math.max(0, totalSecondsGoal - secondsElapsed);
-  
+  // Calculate percentage based on revealed blocks
   const progressPercentage = totalSessionBlocks > 0 
     ? Math.min(100, (revealedCount / totalSessionBlocks) * 100) 
     : 0;
 
-  const hours = String(Math.floor(remainingSeconds / 3600)).padStart(2, '0');
-  const minutes = String(Math.floor((remainingSeconds % 3600) / 60)).padStart(2, '0');
-  const seconds = String(Math.floor(remainingSeconds % 60)).padStart(2, '0');
-
+  const displayPercentage = Math.round(progressPercentage);
   const multiplier = Math.max(1, workerCount);
 
   return (
@@ -65,9 +60,9 @@ export default function Stopwatch({
             </div>
           )}
           
-          {/* TIME DISPLAY */}
+          {/* PERCENTAGE DISPLAY */}
           <div className="w-48 tabular-nums text-center text-app-text uppercase tracking-widest text-4xl font-bold drop-shadow-sm transition-colors duration-300">
-            {hours}:{minutes}:{seconds}
+            {displayPercentage}%
           </div>
           
           {/* SPEED MULTIPLIER */}

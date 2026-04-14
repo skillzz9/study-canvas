@@ -53,7 +53,7 @@ export default function PictureModal({
   const totalLayers = Math.floor(totalBlocks / blocksPerLayer); 
   
   const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
-  const baseLevel = isFinished ? 7 : (currentLayerIndex + 1);
+  const baseLevel = isFinished ? 6 : (currentLayerIndex + 1);
   const topLevel = currentLayerIndex + 2;
 
   useEffect(() => {
@@ -177,7 +177,7 @@ export default function PictureModal({
                       Canvas Completion
                     </h4>
                     <p className="text-4xl font-black tabular-nums tracking-tight text-app-text mb-1">
-                      {hoursLeft}h / {hoursGoal}h
+                      0h / 1h
                     </p>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-app-text/50">
                       {percentage}% Complete

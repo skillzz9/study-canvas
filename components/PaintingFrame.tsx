@@ -31,7 +31,7 @@ export default function PaintingFrame({
   const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
   
   // THE FIX: Base level starts at 1 (the sketch), Top level starts at 2
-  const baseLevel = isFinished ? 7 : (currentLayerIndex + 1);
+  const baseLevel = isFinished ? 6 : (currentLayerIndex + 1);
   const topLevel = currentLayerIndex + 2;
 
   return (
