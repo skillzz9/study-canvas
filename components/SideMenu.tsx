@@ -26,7 +26,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
           className="fixed top-0 left-0 h-full w-80 z-[70] pointer-events-none flex flex-col"
         >
           <div className="h-full w-full bg-app-card border-r-4 border-app-border p-8 shadow-[10px_0px_0px_0px_rgba(0,0,0,0.3)] pointer-events-auto flex flex-col">
-            <div className="flex justify-between items-center mb-12">
+            <div className="flex justify-between items-center mb-12 mt-4">
             </div>
 
             <nav className="flex flex-col gap-4">
