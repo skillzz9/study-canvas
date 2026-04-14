@@ -52,7 +52,7 @@ export default function PaintingFrame({
         <div className="absolute inset-0 bg-app-bg overflow-hidden">
           
           {/* BACKGROUND LAYER (The sketch or the last completed layer) */}
-          <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-[#F5F5F5] overflow-hidden">
             <Level imageSrc={src} level={baseLevel as any} />
           </div>
 

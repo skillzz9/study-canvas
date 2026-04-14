@@ -32,7 +32,6 @@ export default function PictureModal({
   targetHours = 10,          
   dateCreated = "APR 14, 2026"   
 }: PictureModalProps) {
-  const themeColor = "#000"; 
   const router = useRouter();
 
   // STATE
@@ -94,14 +93,12 @@ export default function PictureModal({
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()} 
-              className="bg-white border-4 relative max-w-4xl w-full max-h-[90vh] overflow-y-auto no-scrollbar cursor-default shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] font-space"
-              style={{ borderColor: themeColor }}
+              className="bg-app-card border-4 border-app-border relative max-w-4xl w-full max-h-[90vh] overflow-y-auto no-scrollbar cursor-default shadow-[12px_12px_0px_0px_rgba(0,0,0,0.3)] font-space text-app-text"
             >
               {/* CLOSE BUTTON */}
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 border-2 w-10 h-10 flex items-center justify-center bg-white hover:bg-neutral-100 transition-colors z-10 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                style={{ borderColor: themeColor }}
+                className="absolute top-4 right-4 border-2 border-app-border w-10 h-10 flex items-center justify-center bg-app-card hover:bg-app-bg transition-colors z-10 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] text-app-text"
               >
                 <span className="text-2xl font-black leading-none">×</span>
               </button>
@@ -109,11 +106,15 @@ export default function PictureModal({
               <div className="p-8 md:p-12">
                 
                 {/* 1. THE IMAGE (WITH REVEAL MASK & LEVELS) */}
-                <div 
-                  className="border-4 bg-neutral-100 p-3 mb-10 flex justify-center"
-                  style={{ borderColor: themeColor }}
-                >
-                  <div className="relative w-full max-w-[500px] aspect-square bg-white border-2 border-neutral-200 overflow-hidden shadow-inner">
+                <div className="border-4 border-app-border bg-app-bg p-3 mb-10 flex justify-center">
+                  <div className="relative w-full max-w-[500px] aspect-square bg-app-bg border-2 border-app-border/20 overflow-hidden shadow-inner">
+                    
+                    {/* Empty Canvas Text (Just in case it hasn't loaded yet) */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-sm font-black uppercase text-app-text/30 tracking-widest">
+                        Empty Canvas
+                      </span>
+                    </div>
                     
                     {/* BACKGROUND LAYER (The sketch or the last completed layer) */}
                     <div className="absolute inset-0 z-0">
@@ -140,7 +141,7 @@ export default function PictureModal({
                 </div>
 
                 {/* 2. HEADER */}
-                <div className="border-b-4 pb-6 mb-8" style={{ borderColor: themeColor }}>
+                <div className="border-b-4 border-app-border pb-6 mb-8">
                   {isEditing ? (
                     <input
                       autoFocus
@@ -151,18 +152,18 @@ export default function PictureModal({
                       onKeyDown={(e) => {
                         if (e.key === "Enter") setIsEditing(false);
                       }}
-                      className="text-5xl font-black uppercase italic tracking-tighter text-neutral-900 leading-none mb-2 w-full bg-transparent border-b-2 border-neutral-300 outline-none focus:border-black"
+                      className="text-5xl font-black uppercase tracking-tighter text-app-text leading-none mb-2 w-full bg-transparent border-b-2 border-app-border/50 outline-none focus:border-app-border"
                     />
                   ) : (
                     <h2 
                       onClick={() => setIsEditing(true)}
-                      className="text-5xl font-black uppercase italic tracking-tighter text-neutral-900 leading-none mb-2 cursor-text hover:opacity-70 transition-opacity"
+                      className="text-5xl font-black uppercase tracking-tighter text-app-text leading-none mb-2 cursor-text hover:opacity-70 transition-opacity"
                       title="Click to edit title"
                     >
                       {localTitle}
                     </h2>
                   )}
-                  <p className="text-sm font-bold uppercase tracking-[0.3em] text-neutral-400">
+                  <p className="text-sm font-bold uppercase tracking-[0.3em] text-app-text/60">
                      {date} <span className="mx-2 opacity-50">•</span> CREATED: {dateCreated}
                   </p>
                 </div>
@@ -171,28 +172,28 @@ export default function PictureModal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   
                   {/* PROGRESS BLOCK */}
-                  <div className="border-4 p-6 bg-neutral-50 flex flex-col justify-center" style={{ borderColor: themeColor }}>
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-neutral-400 mb-3">
+                  <div className="border-4 border-app-border p-6 bg-app-bg flex flex-col justify-center">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-app-text/60 mb-3">
                       Canvas Completion
                     </h4>
-                    {/* CHANGED: Swapped Hours to the 4xl font, and percentage to the 10px font */}
-                    <p className="text-4xl font-black tabular-nums tracking-tight text-neutral-950 mb-1">
+                    <p className="text-4xl font-black tabular-nums tracking-tight text-app-text mb-1">
                       {hoursLeft}h / {hoursGoal}h
                     </p>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-app-text/50">
                       {percentage}% Complete
                     </p>
                   </div>
 
                   {/* ACTION BLOCK (CONTINUE PAINTING) */}
-                  <div className="border-4 p-6 bg-neutral-900 text-white flex flex-col justify-center" style={{ borderColor: themeColor }}>
+                  {/* Notice how the text and background classes are inverted here for that brutalist contrast */}
+                  <div className="border-4 border-app-border p-6 bg-app-text text-app-bg flex flex-col justify-center">
                     {isFinished ? (
                       <div className="text-center">
-                        <h4 className="text-2xl font-black uppercase tracking-tight text-white">Masterpiece Complete</h4>
+                        <h4 className="text-2xl font-black uppercase tracking-tight text-app-bg">Masterpiece Complete</h4>
                       </div>
                     ) : (
                       <>
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-neutral-400 mb-3">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-app-bg/70 mb-3">
                           Next Session Goal (Mins)
                         </h4>
                         <div className="flex gap-4">
@@ -201,11 +202,11 @@ export default function PictureModal({
                             min="1"
                             value={sessionGoal}
                             onChange={(e) => setSessionGoal(Number(e.target.value))}
-                            className="bg-transparent border-b-4 border-white text-3xl font-black tabular-nums w-24 outline-none text-white pb-1 focus:border-neutral-400 transition-colors"
+                            className="bg-transparent border-b-4 border-app-bg/50 text-3xl font-black tabular-nums w-24 outline-none text-app-bg pb-1 focus:border-app-bg transition-colors"
                           />
                           <button 
                             onClick={handleContinuePainting}
-                            className="flex-1 bg-white text-black font-black uppercase text-sm border-4 border-black hover:bg-neutral-200 transition-colors hover:translate-x-[2px] hover:translate-y-[2px] shadow-[4px_4px_0px_0px_rgba(255,255,255,0.3)] hover:shadow-none"
+                            className="flex-1 bg-app-bg text-app-text font-black uppercase text-sm border-4 border-app-bg hover:opacity-90 transition-all hover:translate-x-[2px] hover:translate-y-[2px] shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none"
                           >
                             Enter Room
                           </button>
