@@ -13,8 +13,11 @@ import { useAuth } from "@/context/AuthContext";
 import { getUserDocument } from "@/lib/userService";
 import { UserProfile } from "@/types";
 import { updatePresence, leaveGlobalRoom } from "@/lib/roomService";
+import Link from "next/link"; // Added Link
+import { useTheme } from "next-themes"; // Added useTheme
 
 export default function StudyRoom() {
+  const { theme, setTheme } = useTheme(); // Initialize theme logic
   const TIMELAPSE_MULTIPLIER = 3;
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -34,9 +37,7 @@ export default function StudyRoom() {
   const [collaborators, setCollaborators] = useState<any[]>([]);
   const [bankedMs, setBankedMs] = useState(0);
   
-  // globalStartTime is for the collective multiplier logic (shifting)
   const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
-  // stableSessionStart is for the individual avatar stopwatches (fixed)
   const [stableSessionStart, setStableSessionStart] = useState<number | null>(null);
   
   const [roomStatus, setRoomStatus] = useState("idle");
@@ -51,35 +52,33 @@ export default function StudyRoom() {
     return [...collaborators].sort((a, b) => a.id.localeCompare(b.id));
   }, [collaborators]);
 
- const isSessionComplete = totalSessionBlocks > 0 && revealedCount >= totalSessionBlocks;
+  const isSessionComplete = totalSessionBlocks > 0 && revealedCount >= totalSessionBlocks;
  
-  // CONSOLIDATED SYNCING LOGIC
+  // Function to leave room and go home
+  const handleExitRoom = async () => {
+    if (user) {
+      await leaveGlobalRoom(user.uid);
+      router.push("/");
+    }
+  };
+
   useEffect(() => {
     const roomRef = doc(db, "rooms", "global-room");
     const unsubscribe = onSnapshot(roomRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        
         setRevealedCount(data.revealedCount || 0); 
-        
         const currentBankedMs = data.accumulatedMs || 0;
         setBankedMs(currentBankedMs); 
         setSecondsElapsed(currentBankedMs / 1000);
-
         setTotalMinutes(data.totalMinutes || 30);
         setDbShuffledIndices(data.shuffledIndices || []);
         setRoomStatus(data.status || "idle"); 
-        
         if (data.gridSize) setGridSize(data.gridSize);
         if (data.totalLayers) setTotalLayers(data.totalLayers);
-        
-        // Update the shifting checkpoint for collective time
         if (data.lastStartTime) {
           setGlobalStartTime(data.lastStartTime.toDate().getTime());
         }
-
-        // Update the stable anchor for individual avatar timers
-        // We fall back to lastStartTime if the specific session anchor hasn't been set yet
         const sessionAnchor = data.sessionStartedAt || data.lastStartTime;
         if (sessionAnchor) {
           setStableSessionStart(sessionAnchor.toDate().getTime());
@@ -91,10 +90,8 @@ export default function StudyRoom() {
   
   useEffect(() => {
     if (!user || !userData) return;
-
     updatePresence(user, userData);
     const presenceRef = collection(db, "rooms", "global-room", "presence");
-
     const unsubscribe = onSnapshot(presenceRef, (snapshot) => {
       const players = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -102,31 +99,26 @@ export default function StudyRoom() {
       }));
       setCollaborators(players);
     });
-
     return () => {
       leaveGlobalRoom(user.uid);
       unsubscribe();
     };
   }, [user, userData]);
 
-useEffect(() => {
-  let interval: NodeJS.Timeout;
-  
-  // ADDED: !isSessionComplete to the condition
-  if (globalStartTime && roomStatus === "active" && !isSessionComplete) {
-    interval = setInterval(() => {
-      const now = Date.now();
-      const msSinceCheckpoint = now - globalStartTime;
-      
-      const workerMultiplier = Math.max(1, sortedWorkers.length);
-      const collectiveMs = msSinceCheckpoint * workerMultiplier;
-      
-      const totalMs = bankedMs + collectiveMs;
-      setSecondsElapsed(totalMs / 1000);
-    }, 50);
-  }
-  return () => clearInterval(interval);
-}, [globalStartTime, bankedMs, sortedWorkers.length, roomStatus, isSessionComplete]);
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (globalStartTime && roomStatus === "active" && !isSessionComplete) {
+      interval = setInterval(() => {
+        const now = Date.now();
+        const msSinceCheckpoint = now - globalStartTime;
+        const workerMultiplier = Math.max(1, sortedWorkers.length);
+        const collectiveMs = msSinceCheckpoint * workerMultiplier;
+        const totalMs = bankedMs + collectiveMs;
+        setSecondsElapsed(totalMs / 1000);
+      }, 50);
+    }
+    return () => clearInterval(interval);
+  }, [globalStartTime, bankedMs, sortedWorkers.length, roomStatus, isSessionComplete]);
 
   const handleBlockComplete = async () => {
     const roomRef = doc(db, "rooms", "global-room");
@@ -138,7 +130,6 @@ useEffect(() => {
   useEffect(() => {
     const savedImage = "test.png";
     const savedTime = localStorage.getItem("studyTime"); 
-
     if (!savedImage) {
       router.push("/"); 
     } else {
@@ -148,10 +139,8 @@ useEffect(() => {
           const fastUrl = URL.createObjectURL(blob);
           setStudyImage(fastUrl);
         });
-
       if (savedTime) setTotalMinutes(Number(savedTime));
     }
-    
     return () => {
       if (studyImage && studyImage.startsWith("blob:")) {
         URL.revokeObjectURL(studyImage);
@@ -179,7 +168,6 @@ useEffect(() => {
     }
   }, [user, authLoading, router]);
 
-
   useEffect(() => {
     if (isSessionComplete) {
       confetti({
@@ -188,12 +176,10 @@ useEffect(() => {
         origin: { y: 0.6 },
         colors: ['#22c55e', '#ef4444', '#eab308', '#3b82f6']
       });
-
       const interval = setInterval(() => {
         confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 } });
         confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1 } });
       }, 2000);
-
       return () => clearInterval(interval);
     }
   }, [isSessionComplete]);
@@ -202,18 +188,16 @@ useEffect(() => {
 
   if (authLoading || dataLoading || !studyImage) {
     return (
-      <main className="min-h-screen bg-paper flex items-center justify-center font-space">
+      <main className="min-h-screen bg-app-bg flex items-center justify-center font-space">
         <div className="font-bold text-xl uppercase tracking-widest animate-pulse">Entering Room...</div>
       </main>
     );
   }
 
   const targetBlocksCount = Math.min(
-  Math.floor((secondsElapsed / (totalMinutes * 60)) * totalSessionBlocks),
-  totalSessionBlocks
-);
-
-
+    Math.floor((secondsElapsed / (totalMinutes * 60)) * totalSessionBlocks),
+    totalSessionBlocks
+  );
   
   const handleFinishSession = async () => {
     try {
@@ -229,16 +213,40 @@ useEffect(() => {
   const topLevel = (currentLayerIndex + 2) as any;
 
   return (
-    <main className="min-h-screen bg-paper flex flex-col items-center justify-center">
+    <main className="min-h-screen bg-app-bg flex flex-col items-center justify-center transition-colors duration-300">
       
+      {/* 1. FIXED UI BUTTONS (Aligned with Home Page) */}
+      <div className="absolute top-6 left-6 z-50 flex gap-4">
+        {/* EXIT/HOME BUTTON */}
+        <button 
+          onClick={handleExitRoom}
+          className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-app-text flex items-center justify-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+        </button>
+
+        {/* THEME TOGGLE BUTTON */}
+        <button 
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-app-text flex items-center justify-center"
+        >
+          {theme === "dark" ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          )}
+        </button>
+      </div>
+
       <div className="relative flex flex-col items-center pb-40">
-                {/* <div className="absolute -top-4 -right-4 z-40 bg-paper border-4 border-neutral-800 px-3 py-1 rounded-xl ">
-    <span className="text-sm font-black uppercase text-neutral-800 tabular-nums">
-      {totalSessionBlocks > 0 ? Math.round((revealedCount / totalSessionBlocks) * 100) : 0}%
-    </span>
-  </div> */}
         <div className="w-[400px] h-[400px] relative shadow-2xl bg-white rounded-2xl border-4 border-neutral-800 overflow-hidden">
-          
           <div className="absolute inset-0 z-0">
             <Level imageSrc={studyImage} level={baseLevel} />
           </div>
@@ -254,17 +262,17 @@ useEffect(() => {
           </div>
         </div>
 
-<Stopwatch 
-  secondsElapsed={secondsElapsed} 
-  totalMinutes={totalMinutes} // Make sure to pass this!
-  workerCount={sortedWorkers.length}
-  isSessionComplete={isSessionComplete}
-  onFinish={handleFinishSession}
-  roomStatus={roomStatus}
-  revealedCount={revealedCount}
-  totalSessionBlocks={totalSessionBlocks}
-/>
-        {/* RENDERING AVATARS */}
+        <Stopwatch 
+          secondsElapsed={secondsElapsed} 
+          totalMinutes={totalMinutes}
+          workerCount={sortedWorkers.length}
+          isSessionComplete={isSessionComplete}
+          onFinish={handleFinishSession}
+          roomStatus={roomStatus}
+          revealedCount={revealedCount}
+          totalSessionBlocks={totalSessionBlocks}
+        />
+
         {dbShuffledIndices.length > 0 ? (
           sortedWorkers.map((player, index) => (
             <Avatar 
@@ -280,7 +288,6 @@ useEffect(() => {
               onBlockComplete={handleBlockComplete}
               lastSeen={player.lastSeen}
               roomStatus={roomStatus}
-              // FIXED: Passing stableSessionStart ensures individual timers don't reset
               globalStartTime={stableSessionStart}
             />
           ))
@@ -291,7 +298,6 @@ useEffect(() => {
         )}
 
         <Desk topPosition={600} />
-        
       </div>
     </main>
   );
