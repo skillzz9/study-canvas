@@ -1,75 +1,71 @@
 "use client";
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React from "react";
+import GridRevealMask from "@/components/GridRevealMask";
 
 interface PaintingFrameProps {
   src: string;
-  alt?: string;
-  title?: string; // 1. Added the title prop back here
-  date?: string;
-  themeColor?: string;
-  onClick?: () => void;
+  title: string;
+  revealedCount: number;
+  totalBlocks: number;
+  shuffledIndices: number[];
+  onClick: () => void;
 }
 
 export default function PaintingFrame({ 
   src, 
-  alt = "Gallery Item", 
-  title, // 2. Destructured it here so the component accepts it
-  date, 
-  themeColor = "#000",
-  onClick
+  title, 
+  revealedCount, 
+  totalBlocks, 
+  shuffledIndices,
+  onClick 
 }: PaintingFrameProps) {
-  const [isHovered, setIsHovered] = useState(false);
+  
+  const percentage = Math.round((revealedCount / totalBlocks) * 100);
+  const isBrandNew = revealedCount === 0;
 
   return (
     <div 
-      className="relative z-20 cursor-pointer"
-      style={{ width: "200px" }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={() => {
-        setIsHovered(false); // Keeps the hover state from getting stuck
-        if (onClick) onClick();
-      }}
+      onClick={onClick}
+      className="group relative flex flex-col items-center cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
     >
-      {/* HOVER DATE INDICATOR */}
-      <AnimatePresence>
-        {isHovered && date && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute -top-8 left-0 w-full text-center pointer-events-none"
-            style={{ WebkitFontSmoothing: "antialiased" }}
-          >
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500 whitespace-nowrap">
-              {date}
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      
+      {/* 1. HOVER TITLE (TOP) - Plain Text */}
+      <div className="absolute -top-6 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-20 pointer-events-none">
+        <span className="text-[12px] font-black uppercase text-app-text tracking-widest truncate max-w-[240px]">
+          {title}
+        </span>
+      </div>
 
-      {/* YOUR EXACT ORNATE FRAME DESIGN (No title plaque rendered) */}
-      <div 
-        className="p-4 bg-white border-4 relative shadow-lg active:scale-95 transition-transform"
-        style={{ 
-          borderColor: themeColor,
-          width: "200px",
-          height: "240px",
-          background: `linear-gradient(145deg, #ac9764, #d8c3a1)`,
-          transform: "translateZ(0)",
-          backfaceVisibility: "hidden"
-        }}
-      >
-        <div className="w-full h-full border-2 border-black bg-neutral-100 overflow-hidden shadow-inner">
-          <img 
-            src={src} 
-            alt={alt} 
-            className="w-full h-full object-cover"
-            style={{ transform: "translateZ(0)", backfaceVisibility: "hidden" }}
-          />
+      {/* 2. CORNER-TO-CORNER WOOD FRAME */}
+      {/* Using #5C4033 for a dark walnut wood look. You can change this hex code to make it lighter/darker */}
+      <div className="relative w-[240px] h-[240px] border-[14px] border-[#5C4033] bg-app-bg">
+        
+        {/* CANVAS AREA */}
+        <div className="absolute inset-0 bg-app-bg overflow-hidden">
+          {isBrandNew ? (
+            <div className="w-full h-full flex items-center justify-center bg-app-bg/50 bg-white">
+            </div>
+          ) : (
+            <GridRevealMask 
+              revealedCount={revealedCount} 
+              gridSize={6} 
+              fullShuffledIndices={shuffledIndices}
+              isStatic={true} 
+              allLayers={true}
+            >
+              <img src={src} className="w-full h-full object-cover" alt={title} />
+            </GridRevealMask>
+          )}
         </div>
       </div>
+
+      {/* 3. HOVER PROGRESS (BOTTOM) - Plain Text */}
+      <div className="absolute -bottom-6 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-y-2 group-hover:translate-y-0 z-20 pointer-events-none">
+        <span className="text-[10px] font-bold uppercase text-app-text tracking-widest">
+          {percentage}% Complete
+        </span>
+      </div>
+
     </div>
   );
 }

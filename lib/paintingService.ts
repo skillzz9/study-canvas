@@ -8,51 +8,84 @@ import {
   where, 
   getDocs, 
   serverTimestamp,
-  orderBy
+  orderBy,
+  Timestamp
 } from "firebase/firestore";
 
-// PAINTING OBJECT //
+// --- INTERFACE ---
 export interface PaintingData {
-  id?: string; // Firebase doc ID
-  userId: string; // who is the user 
-  title: string; // the title that the user is naming this painting 
-  subject: string; // topic or subject (eg biology or exam)
-  targetHours: number; // how many hours they want to collectively study on this painting to draw it 
-  totalBlocks: number; // how many blocks are needed to complete it (will be calcualted automatically)
-  revealedBlocks: number; // how much has been completed
-  imageUrl: string | null; // images will be stored locally for now
-  status: "in-progress" | "completed"; 
-  createdAt: any; // date and time it was created 
-  position: { x: number; y: number }; // where it is on the gallery
+  id?: string;
+  userId: string;
+  title: string;
+  subject: string;
+  targetHours: number;
+  totalBlocks: number;
+  revealedBlocks: number;
+  shuffledIndices: number[]; // The master reveal sequence
+  imageUrl: string | null;
+  status: "in-progress" | "completed";
+  createdAt: Timestamp | any; 
+  position: { x: number; y: number };
+  collaborators: string[]; // For shared paintings logic
 }
 
-// CREATES PAINTING 
+// --- HELPERS ---
+
+/**
+ * Generates indices layer-by-layer to ensure the background fills 
+ * before the foreground, but keeps each layer's reveal random.
+ */
+function generateShuffledIndices(gridSize: number, totalLayers: number): number[] {
+  const BLOCKS_PER_LAYER = gridSize * gridSize;
+  const indices: number[] = [];
+
+  for (let i = 0; i < totalLayers; i++) {
+    const start = i * BLOCKS_PER_LAYER;
+    const layerIndices = Array.from({ length: BLOCKS_PER_LAYER }, (_, j) => start + j);
+
+    // Fisher-Yates shuffle ONLY the current layer
+    for (let k = layerIndices.length - 1; k > 0; k--) {
+      const r = Math.floor(Math.random() * (k + 1));
+      [layerIndices[k], layerIndices[r]] = [layerIndices[r], layerIndices[k]];
+    }
+    indices.push(...layerIndices);
+  }
+  return indices;
+}
+
+// --- CORE FUNCTIONS ---
+
+/**
+ * Creates a new painting document in Firestore.
+ */
 export async function createPainting(
   userId: string, 
   title: string, 
   subject: string, 
   targetHours: number,
-  imageUrl: string | null = null
+  imageUrl: string | null = null,
+  isShared: boolean = false
 ) {
   try {
-    // We set a default grid size for new paintings (e.g., 6x6 grid * 5 layers = 180 blocks)
-    // You can make this dynamic later if you want users to pick the canvas size.
+    const gridSize = 6; 
+    const totalLayers = 5;
+    const totalBlocks = (gridSize * gridSize) * totalLayers;
 
-    // HARD CODED VALUE
-    const defaultTotalBlocks = 180; 
+    const shuffledIndices = generateShuffledIndices(gridSize, totalLayers);
 
     const newPainting: Omit<PaintingData, 'id'> = {
       userId,
       title,
       subject,
       targetHours,
-      totalBlocks: defaultTotalBlocks,
-      revealedBlocks: 0, // Starts blank
+      totalBlocks,
+      shuffledIndices, 
+      revealedBlocks: 0,
       imageUrl,
       status: "in-progress",
       createdAt: serverTimestamp(),
-      // Spawns in the center of the gallery wall
-      position: { x: 0, y: 0 } 
+      position: { x: 0, y: 0 },
+      collaborators: [userId] // Creator is the first collaborator
     };
 
     const docRef = await addDoc(collection(db, "paintings"), newPainting);
@@ -63,12 +96,15 @@ export async function createPainting(
   }
 }
 
-// 3. Fetch all paintings for the gallery wall
+/**
+ * Fetches all paintings for a specific user (as owner or collaborator).
+ */
 export async function getUserPaintings(userId: string): Promise<PaintingData[]> {
   try {
+    // This query finds paintings where the user is in the collaborators list
     const q = query(
       collection(db, "paintings"), 
-      where("userId", "==", userId),
+      where("collaborators", "array-contains", userId),
       orderBy("createdAt", "desc")
     );
     
@@ -86,7 +122,9 @@ export async function getUserPaintings(userId: string): Promise<PaintingData[]> 
   }
 }
 
-// 4. Save the XY coordinates when a user drags a frame around the gallery
+/**
+ * Updates the X/Y coordinates of a frame on the gallery wall.
+ */
 export async function updatePaintingPosition(paintingId: string, x: number, y: number) {
   try {
     const paintingRef = doc(db, "paintings", paintingId);
@@ -100,12 +138,17 @@ export async function updatePaintingPosition(paintingId: string, x: number, y: n
   }
 }
 
-// 5. Update progress after they leave the study room
-export async function updatePaintingProgress(paintingId: string, newRevealedCount: number) {
+/**
+ * Updates progress and checks if the painting is finished.
+ */
+export async function updatePaintingProgress(paintingId: string, newRevealedCount: number, totalBlocks: number) {
   try {
     const paintingRef = doc(db, "paintings", paintingId);
+    const isFinished = newRevealedCount >= totalBlocks;
+    
     await updateDoc(paintingRef, {
-      revealedBlocks: newRevealedCount
+      revealedBlocks: newRevealedCount,
+      status: isFinished ? "completed" : "in-progress"
     });
   } catch (error) {
     console.error("Error updating painting progress:", error);
