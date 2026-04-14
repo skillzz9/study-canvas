@@ -3,19 +3,12 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import GridRevealMask from "@/components/GridRevealMask";
-
-// TYPES
-interface Contributor {
-  id: number;
-  username: string;
-  avatarUrl: string;
-  contributionPercent: number;
-}
+import Level from "@/components/Level"; 
 
 interface PictureModalProps {
   isOpen: boolean;       
   onClose: () => void;  
-  id: string; // Needed to route to the study room
+  id: string; 
   src: string;           
   title: string;         
   date: string;          
@@ -23,12 +16,6 @@ interface PictureModalProps {
   totalBlocks: number;
   shuffledIndices: number[];
 }
-
-// FAKE DATA FOR DEMO
-const fakeContributors: Contributor[] = [
-  { id: 1, username: "joc", avatarUrl: "avatars/avatar7.webp", contributionPercent: 50 },
-  { id: 2, username: "big bird", avatarUrl: "avatars/avatar9.webp", contributionPercent: 50 },
-];
 
 export default function PictureModal({ 
   isOpen, 
@@ -52,7 +39,15 @@ export default function PictureModal({
   // DERIVED DATA
   const percentage = Math.round((revealedCount / totalBlocks) * 100);
   const isFinished = revealedCount >= totalBlocks;
-  const isBrandNew = revealedCount === 0;
+
+  // Exact same math from your Study Room and Gallery
+  const gridSize = 6;
+  const blocksPerLayer = gridSize * gridSize;
+  const totalLayers = Math.floor(totalBlocks / blocksPerLayer); 
+  
+  const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
+  const baseLevel = isFinished ? 7 : (currentLayerIndex + 1);
+  const topLevel = currentLayerIndex + 2;
 
   useEffect(() => {
     setLocalTitle(title);
@@ -105,31 +100,34 @@ export default function PictureModal({
 
               <div className="p-8 md:p-12">
                 
-                {/* 1. THE IMAGE (WITH REVEAL MASK) */}
+                {/* 1. THE IMAGE (WITH REVEAL MASK & LEVELS) */}
                 <div 
                   className="border-4 bg-neutral-100 p-3 mb-10 flex justify-center"
                   style={{ borderColor: themeColor }}
                 >
-                  {/* Square container ensures the grid mask draws accurately */}
                   <div className="relative w-full max-w-[500px] aspect-square bg-white border-2 border-neutral-200 overflow-hidden shadow-inner">
-                    {isBrandNew ? (
-                      <div className="w-full h-full flex items-center justify-center bg-neutral-50">
+                    
+                    {/* BACKGROUND LAYER (The sketch or the last completed layer) */}
+                    <div className="absolute inset-0 z-0">
+                      <Level imageSrc={src} level={baseLevel as any} />
+                    </div>
+
+                    {/* ACTIVE PAINTING LAYER (What the mask is currently revealing) */}
+                    {!isFinished && (
+                      <div className="absolute inset-0 z-10">
+                        <GridRevealMask 
+                          revealedCount={revealedCount} 
+                          gridSize={gridSize} 
+                          fullShuffledIndices={shuffledIndices}
+                          currentLayerIndex={currentLayerIndex} 
+                          isStatic={true} 
+                          allLayers={false} 
+                        >
+                          <Level imageSrc={src} level={topLevel as any} />
+                        </GridRevealMask>
                       </div>
-                    ) : (
-                      <GridRevealMask 
-                        revealedCount={revealedCount} 
-                        gridSize={6} 
-                        fullShuffledIndices={shuffledIndices}
-                        isStatic={true} 
-                        allLayers={true}
-                      >
-                        <img 
-                          src={src} 
-                          alt={localTitle} 
-                          className="w-full h-full object-cover block" 
-                        />
-                      </GridRevealMask>
                     )}
+
                   </div>
                 </div>
 
@@ -162,7 +160,7 @@ export default function PictureModal({
                 </div>
 
                 {/* 3. META INFO GRID */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   
                   {/* PROGRESS BLOCK */}
                   <div className="border-4 p-6 bg-neutral-50" style={{ borderColor: themeColor }}>
@@ -202,36 +200,6 @@ export default function PictureModal({
                         </div>
                       </>
                     )}
-                  </div>
-                </div>
-
-                {/* 4. CONTRIBUTORS BLOCK */}
-                <div className="border-4 p-8 bg-neutral-50" style={{ borderColor: themeColor }}>
-                  <h3 className="text-xl font-black uppercase text-neutral-900 mb-6 tracking-tight">
-                    Artists
-                  </h3>
-
-                  <div className="space-y-6">
-                    {fakeContributors.map((con) => (
-                      <div key={con.id} className="flex items-center gap-5 border-b border-neutral-200 pb-6 last:border-b-0 last:pb-0">
-                        <div className="w-16 h-16 flex-shrink-0 overflow-hidden">
-                          <img src={con.avatarUrl} alt={con.username} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex-grow grid grid-cols-2 items-center gap-4">
-                          <p className="text-lg font-bold text-neutral-900 font-mono tracking-tight">
-                            {con.username}
-                          </p>
-                          <div className="text-right flex items-center justify-end gap-3">
-                              <div className="w-32 h-2 bg-neutral-200 border border-black relative overflow-hidden hidden md:block">
-                                  <div className="absolute inset-0 bg-neutral-900" style={{ width: `${con.contributionPercent}%`}} />
-                              </div>
-                              <p className="text-2xl font-black tabular-nums text-neutral-950 whitespace-nowrap">
-                                  {con.contributionPercent}%
-                              </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </div>
 

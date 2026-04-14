@@ -37,11 +37,11 @@ export default function PaintingFrame({
   return (
     <div 
       onClick={onClick}
-      className="flex flex-col items-center gap-3 cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+      className="group flex flex-col items-center gap-3 cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
     >
       
-      {/* 1. STATIC TITLE (TOP) */}
-      <span className="text-[12px] font-black uppercase text-app-text tracking-widest truncate max-w-[240px] text-center">
+      {/* 1. HOVER TITLE (TOP) */}
+      <span className="text-[12px] font-black uppercase text-app-text tracking-widest truncate max-w-[240px] text-center opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
         {title}
       </span>
 
@@ -75,8 +75,8 @@ export default function PaintingFrame({
         </div>
       </div>
 
-      {/* 3. STATIC PROGRESS (BOTTOM) */}
-      <span className="text-[10px] font-bold uppercase text-app-text tracking-widest text-center opacity-60">
+      {/* 3. HOVER PROGRESS (BOTTOM) */}
+      <span className="text-[10px] font-bold uppercase text-app-text tracking-widest text-center opacity-0 group-hover:opacity-60 transition-all duration-300 -translate-y-2 group-hover:translate-y-0">
         {percentage}% Complete
       </span>
 
