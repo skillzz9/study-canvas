@@ -80,7 +80,11 @@ export default function GalleryPage() {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const handleWheel = (e: WheelEvent) => {
+    
+    const handleNativeWheel = (e: WheelEvent) => {
+      // FIX 1: If any modal is open, completely abort the zoom!
+      if (isModalOpen || isCreateModalOpen || isMenuOpen) return; 
+      
       e.preventDefault();
       const sensitivity = 0.001;
       setScale((prevScale) => {
@@ -88,11 +92,17 @@ export default function GalleryPage() {
         return Math.min(Math.max(prevScale - delta, 0.1), 3);
       });
     };
-    container.addEventListener("wheel", handleWheel, { passive: false });
-    return () => container.removeEventListener("wheel", handleWheel);
-  }, [scale]);
+    
+    container.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleNativeWheel);
+    
+  // FIX 2: We must add the modal states to the dependency array so the hook knows when they open/close
+  }, [scale, isModalOpen, isCreateModalOpen, isMenuOpen]);
 
   const handleWheel = (e: React.WheelEvent) => {
+    // FIX 3: Apply the same abort logic to the React scroll event
+    if (isModalOpen || isCreateModalOpen || isMenuOpen) return;
+    
     const sensitivity = 0.001; 
     const delta = e.deltaY * scale * sensitivity;
     setScale(Math.min(Math.max(scale - delta, 0.1), 3));
