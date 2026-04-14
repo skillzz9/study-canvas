@@ -15,6 +15,8 @@ interface PictureModalProps {
   revealedCount: number;
   totalBlocks: number;
   shuffledIndices: number[];
+  targetHours?: number;  
+  dateCreated?: string;  
 }
 
 export default function PictureModal({ 
@@ -26,7 +28,9 @@ export default function PictureModal({
   date,
   revealedCount,
   totalBlocks,
-  shuffledIndices 
+  shuffledIndices,
+  targetHours = 10,          
+  dateCreated = "APR 14, 2026"   
 }: PictureModalProps) {
   const themeColor = "#000"; 
   const router = useRouter();
@@ -39,6 +43,10 @@ export default function PictureModal({
   // DERIVED DATA
   const percentage = Math.round((revealedCount / totalBlocks) * 100);
   const isFinished = revealedCount >= totalBlocks;
+  
+  // Calculate hours left
+  const hoursGoal = targetHours;
+  const hoursLeft = Math.max(0, ((totalBlocks - revealedCount) / totalBlocks) * hoursGoal).toFixed(1);
 
   // Exact same math from your Study Room and Gallery
   const gridSize = 6;
@@ -155,7 +163,7 @@ export default function PictureModal({
                     </h2>
                   )}
                   <p className="text-sm font-bold uppercase tracking-[0.3em] text-neutral-400">
-                     {date}
+                     {date} <span className="mx-2 opacity-50">•</span> CREATED: {dateCreated}
                   </p>
                 </div>
 
@@ -163,12 +171,16 @@ export default function PictureModal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   
                   {/* PROGRESS BLOCK */}
-                  <div className="border-4 p-6 bg-neutral-50" style={{ borderColor: themeColor }}>
+                  <div className="border-4 p-6 bg-neutral-50 flex flex-col justify-center" style={{ borderColor: themeColor }}>
                     <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-neutral-400 mb-3">
                       Canvas Completion
                     </h4>
-                    <p className="text-4xl font-black tabular-nums tracking-tight text-neutral-950">
-                      {percentage}%
+                    {/* CHANGED: Swapped Hours to the 4xl font, and percentage to the 10px font */}
+                    <p className="text-4xl font-black tabular-nums tracking-tight text-neutral-950 mb-1">
+                      {hoursLeft}h / {hoursGoal}h
+                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                      {percentage}% Complete
                     </p>
                   </div>
 
