@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "next-themes"; // 1. Import the provider
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,12 +28,19 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning // 2. Add this to prevent hydration mismatch errors
     >
       <body className="min-h-full flex flex-col">
-        {/* WRAP YOUR CHILDREN IN THE PROVIDER */}
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        {/* 3. Wrap everything in the ThemeProvider */}
+        <ThemeProvider 
+          attribute="class" 
+          defaultTheme="dark" 
+          enableSystem={false}
+        >
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

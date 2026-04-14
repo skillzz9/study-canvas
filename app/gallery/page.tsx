@@ -24,7 +24,8 @@ const INITIAL_FRAMES: FrameData[] = [
 ];
 
 export default function GalleryPage() {
-  const themeColor = "#000";
+  // Using Judge Gray for the theme lines/accents
+  const themeColor = "#5e503f"; 
   const [frames, setFrames] = useState<FrameData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   
@@ -82,11 +83,11 @@ export default function GalleryPage() {
   if (!isLoaded) return null;
 
   return (
-    <main className="relative w-full h-screen bg-white overflow-hidden flex items-center justify-center font-space">
+    <main className="relative w-full h-screen bg-cab-sav overflow-hidden flex items-center justify-center font-space">
 
       <Link 
         href="/"
-        className="absolute top-8 left-8 z-50 p-3 bg-white border-4 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-black flex items-center justify-center"
+        className="absolute top-8 left-8 z-50 p-3 bg-cod-gray border-4 border-judge-gray rounded-xl shadow-[4px_4px_0px_0px_#0a0908] hover:shadow-[2px_2px_0px_0px_#0a0908] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-wild-sand flex items-center justify-center"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -106,14 +107,18 @@ export default function GalleryPage() {
           </clipPath>
         </defs>
 
-        <polygon points="0,0 100,0 90,10 10,10" fill="#f3f4f6" />
-        <polygon points="0,0 10,10 10,90 0,100" fill="#e5e7eb" />
-        <polygon points="100,0 90,10 90,90 100,100" fill="#e5e7eb" />
-        <polygon points="0,100 100,100 90,90 10,90" fill="#451a03" />
+        {/* Ceiling */}
+        <polygon points="0,0 100,0 90,10 10,10" fill="#5e503f" /> 
+        {/* Left Wall */}
+        <polygon points="0,0 10,10 10,90 0,100" fill="#49111c" />
+        {/* Right Wall */}
+        <polygon points="100,0 90,10 90,90 100,100" fill="#49111c" />
+        {/* Floor */}
+        <polygon points="0,100 100,100 90,90 10,90" fill="#0a0908" />
         
         <g clipPath="url(#floorClip)">
           {Array.from({ length: 21 }).map((_, i) => (
-            <line key={i} x1="50" y1="50" x2={i * 5} y2="100" stroke="#311102" strokeWidth="0.5" />
+            <line key={i} x1="50" y1="50" x2={i * 5} y2="100" stroke="#5e503f" strokeWidth="0.5" />
           ))}
         </g>
 
@@ -125,21 +130,21 @@ export default function GalleryPage() {
 
       {/* 2. THE BACK WALL */}
       <div 
-        className="relative z-10 bg-white flex items-center justify-center"
+        className="relative z-10 bg-cod-gray flex items-center justify-center"
         style={{
           width: "80%",
           height: "80%",
           border: `2px solid ${themeColor}`,
-          overflow: "visible" // Allows paintings to be seen on the grey walls
+          overflow: "visible" 
         }}
       >
         {/* SIGN */}
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
           <div 
-            className="bg-white px-8 py-3 border-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+            className="bg-sandrift px-8 py-3 border-4 shadow-[8px_8px_0px_0px_#0a0908]"
             style={{ borderColor: themeColor }}
           >
-            <h1 className="text-5xl font-black text-neutral-900 uppercase italic tracking-tighter">
+            <h1 className="text-5xl font-black text-cod-gray uppercase italic tracking-tighter">
               Gallery
             </h1>
           </div>
@@ -151,7 +156,6 @@ export default function GalleryPage() {
             key={frame.id}
             drag
             dragMomentum={false}
-            // Logic for rotateY and scale removed
             initial={{ x: frame.x, y: frame.y }}
             animate={{ x: frame.x, y: frame.y }}
             onDragStart={() => (isDragging.current = true)}

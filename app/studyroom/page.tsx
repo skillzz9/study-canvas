@@ -15,6 +15,7 @@ import { UserProfile } from "@/types";
 import { updatePresence, leaveGlobalRoom } from "@/lib/roomService";
 
 export default function StudyRoom() {
+  const TIMELAPSE_MULTIPLIER = 3;
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [userData, setUserData] = useState<UserProfile | null>(null);

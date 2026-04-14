@@ -1,35 +1,39 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600&display=swap');
 @import "tailwindcss";
 
+:root {
+  /* DARK ACADEMIA (Default) */
+  --bg-main: #0a0908;   /* Cab Sav */
+  --bg-card: #49111c;   /* Cod Gray */
+  --text-main: #f2f4f3;  /* Wild Sand */
+  --border-main: #5e503f; /* Judge Gray */
+  --accent-main: #a9927d; /* Sandrift */
+
+  /* Standard Tailwind variables for v4 */
+  --background: var(--bg-main);
+  --foreground: var(--text-main);
+}
+.light {
+  /* LIGHT ACADEMIA (Swapped) */
+  --bg-main: #f2f4f3;    /* Wild Sand */
+  --bg-card: #ffffff;    /* Pure White */
+  --text-main: #0a0908;   /* Cod Gray */
+  --border-main: #a9927d; /* Sandrift */
+  --accent-main: #5e503f; /* Judge Gray */
+}
 
 @theme {
-  /* Colors */
-  --color-panda-white: #fefaf0;
-  --color-lofi-charcoal: #3d3d3d;
-  --color-cozy-beige: #f5e6d3;
-  --color-paper: oklch(0.94 0.03 85);
-
-  /* Fonts */
-  /* This creates a class called 'font-space' */
-  --font-space: "Space Grotesk", sans-serif;
+  /* We use these "app-" names in the JSX so they swap automatically */
+  --color-app-bg: var(--bg-main);
+  --color-app-card: var(--bg-card);
+  --color-app-text: var(--text-main);
+  --color-app-border: var(--border-main);
+  --color-app-accent: var(--accent-main);
 }
 
-/* Custom Sketch Utilities */
-@utility sketch-bw {
-  filter: grayscale(1) contrast(500%) brightness(120%);
-}
-
-@utility sketch-color {
-  filter: sepia(0.2) contrast(150%) saturate(80%);
-}
-
-/* Hide scrollbar for Chrome, Safari and Opera */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Hide scrollbar for IE, Edge and Firefox */
-.no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+@layer base {
+  html, body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 }
