@@ -3,7 +3,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue } from "framer-motion";
 import PaintingFrame from "@/components/PaintingFrame";
 import PictureModal from "@/components/PictureModal";
+import SideMenu from "@/components/SideMenu";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 
 interface FrameData {
   id: number;
@@ -21,12 +23,13 @@ const INITIAL_FRAMES: FrameData[] = [
 ];
 
 export default function GalleryPage() {
+  const { theme, setTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const [frames, setFrames] = useState<FrameData[]>([]);
   const [scale, setScale] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  // Camera Panning Values
   const cameraX = useMotionValue(0);
   const cameraY = useMotionValue(0);
 
@@ -50,48 +53,30 @@ export default function GalleryPage() {
   }, []);
 
   useEffect(() => {
-  const container = containerRef.current;
-  if (!container) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-  const handleWheel = (e: WheelEvent) => {
-    // STOP the browser from moving the page up/down
-    e.preventDefault();
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const sensitivity = 0.001;
+      setScale((prevScale) => {
+        const delta = e.deltaY * prevScale * sensitivity;
+        return Math.min(Math.max(prevScale - delta, 0.1), 3);
+      });
+    };
 
-    const sensitivity = 0.001;
-    // Use the functional update to ensure we have the latest scale
-    setScale((prevScale) => {
-      const delta = e.deltaY * prevScale * sensitivity;
-      return Math.min(Math.max(prevScale - delta, 0.1), 3);
-    });
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
+  }, [scale]);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    const sensitivity = 0.001; 
+    const delta = e.deltaY * scale * sensitivity;
+    const newScale = Math.min(Math.max(scale - delta, 0.1), 3);
+    setScale(newScale);
   };
-
-  // 2. THE SECRET SAUCE: { passive: false } 
-  // This allows e.preventDefault() to actually work.
-  container.addEventListener("wheel", handleWheel, { passive: false });
-
-  return () => {
-    container.removeEventListener("wheel", handleWheel);
-  };
-}, [scale]); // Re-run if scale logic needs it, though functional setScale is better
-
-const handleWheel = (e: React.WheelEvent) => {
-  // 1. Damping factor (smaller = slower zoom)
-  const sensitivity = 0.001; 
-  
-  // 2. Calculate the zoom based on how much the wheel actually moved.
-  // We multiply by 'scale' so the zoom speed feels consistent 
-  // whether you are zoomed in or out.
-  const delta = e.deltaY * scale * sensitivity;
-  
-  // 3. Subtract the delta (scrolling down usually zooms out)
-  const newScale = Math.min(Math.max(scale - delta, 0.1), 3);
-  
-  setScale(newScale);
-};
 
   const handleDragEnd = (id: number, info: any) => {
-    // When zoomed out, we need to divide the movement by the scale 
-    // so the painting stays "glued" to the mouse cursor.
     const updatedFrames = frames.map((f) => {
       if (f.id === id) {
         return {
@@ -111,38 +96,76 @@ const handleWheel = (e: React.WheelEvent) => {
 
   return (
     <main 
-      className="relative w-full h-screen bg-white overflow-hidden font-space select-none"
+      className="relative w-full h-screen bg-app-bg overflow-hidden font-space select-none transition-colors duration-300"
       onWheel={handleWheel}
       ref={containerRef}
     >
-      {/* 1. FIXED UI (Doesn't Zoom) */}
-      <div className="absolute top-8 left-8 z-50 flex gap-4">
-<Link 
-        href="/"
-        className="absolute top-8 left-8 z-50 p-3 bg-cod-gray border-4 border-judge-gray rounded-xl shadow-[4px_4px_0px_0px_#0a0908] hover:shadow-[2px_2px_0px_0px_#0a0908] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-wild-sand flex items-center justify-center"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-          <polyline points="9 22 9 12 15 12 15 22"></polyline>
-        </svg>
-      </Link>
+      {/* SIDE MENU */}
+      <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+
+      {/* 1. FIXED UI (Moved 30px higher to top-[2px]) */}
+      <div className="absolute top-[2px] left-8 z-[80] flex gap-4 pointer-events-none">
+        {isMenuOpen ? (
+          // ONLY X BUTTON when menu is open
+          <button 
+            onClick={() => setIsMenuOpen(false)}
+            className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-app-text flex items-center justify-center pointer-events-auto"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        ) : (
+          <>
+            {/* HOME BUTTON */}
+            <Link 
+              href="/"
+              className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-app-text flex items-center justify-center pointer-events-auto"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+            </Link>
+
+            {/* THEME TOGGLE */}
+            <button 
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-app-text flex items-center justify-center pointer-events-auto"
+            >
+              {theme === "dark" ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+              )}
+            </button>
+
+            {/* PENCIL (EDIT) BUTTON */}
+            <button 
+              onClick={() => setIsMenuOpen(true)}
+              className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-app-text flex items-center justify-center pointer-events-auto"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                <path d="m15 5 4 4"></path>
+              </svg>
+            </button>
+          </>
+        )}
       </div>
 
-      {/* 2. THE WORLD (Everything inside here pans and zooms) */}
+      {/* 2. THE WORLD */}
       <motion.div
         drag
         dragMomentum={false}
         style={{ x: cameraX, y: cameraY, scale }}
         className="absolute inset-0 flex items-center justify-center cursor-grab active:cursor-grabbing"
       >
-        {/* Background Grid: Helps you see that you are actually moving */}
-        <div 
-          className="absolute inset-[-200%] pointer-events-none opacity-20"
-          style={{
-            backgroundSize: `${40 * scale}px ${40 * scale}px`,
-          }}
-        />
-
         {frames.map((frame) => (
           <motion.div
             key={frame.id}
@@ -183,9 +206,9 @@ const handleWheel = (e: React.WheelEvent) => {
         />
       )}
 
-      {/* ZOOM INDICATOR (Bottom Right) */}
+      {/* ZOOM INDICATOR */}
       <div className="absolute bottom-8 right-8 z-50">
-        <div className="p-3 bg-cod-gray border-4 border-judge-gray rounded-xl shadow-[4px_4px_0px_0px_#0a0908] text-wild-sand font-bold uppercase text-[10px] flex items-center justify-center">
+        <div className="p-3 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] text-app-text font-bold uppercase text-[10px] flex items-center justify-center">
           Zoom: {Math.round(scale * 100)}%
         </div>
       </div>
