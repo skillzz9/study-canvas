@@ -9,11 +9,11 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+// ADDED doc and updateDoc for the user profile
+import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { updatePaintingPosition } from "@/lib/paintingService";
-import { spawnItem, updateItemPosition } from "@/lib/itemService"; // ADDED THIS IMPORT
+import { spawnItem, updateItemPosition, deleteItem } from "@/lib/itemService"; 
 
-// 1. FIXED INTERFACE: Added shuffledIndices
 interface FrameData {
   id: string;
   x: number;
@@ -26,7 +26,6 @@ interface FrameData {
   shuffledIndices: number[]; 
 }
 
-// ADDED ITEM INTERFACE
 interface ItemData {
   id: string;
   x: number;
@@ -40,7 +39,7 @@ export default function GalleryPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   
   const [frames, setFrames] = useState<FrameData[]>([]);
-  const [items, setItems] = useState<ItemData[]>([]); // ADDED ITEMS STATE
+  const [items, setItems] = useState<ItemData[]>([]); 
   const [scale, setScale] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -53,15 +52,50 @@ export default function GalleryPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isDraggingItem = useRef(false);
 
+  // ADDED: Save Wall Color to Database
+  const handleColorSelect = async (color: string | null) => {
+    setWallColor(color); // Update UI instantly
+    
+    if (!user) return;
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, { wallColor: color });
+    } catch (error) {
+      console.error("Failed to save wall color:", error);
+    }
+  };
+
   const handleSpawnItem = async (itemSrc: string) => {
     if (!user) return;
-    
-    // Drop it in the center of their current window view
     const startX = window.innerWidth / 2;
     const startY = window.innerHeight / 2;
-
     await spawnItem(user.uid, itemSrc, startX, startY);
   };
+
+  const handleDeleteItem = async (id: string) => {
+    try {
+      await deleteItem(id);
+    } catch (error) {
+      console.error("Failed to delete item:", error);
+    }
+  };
+
+  // ADDED: REAL-TIME FIRESTORE SYNC (USER PROFILE FOR WALL COLOR)
+  useEffect(() => {
+    if (!user) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const unsubscribeUser = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.wallColor !== undefined) {
+          setWallColor(data.wallColor);
+        }
+      }
+    });
+
+    return () => unsubscribeUser();
+  }, [user]);
 
   // REAL-TIME FIRESTORE SYNC (PAINTINGS)
   useEffect(() => {
@@ -84,7 +118,6 @@ export default function GalleryPage() {
           subject: data.subject || "General",
           revealedBlocks: data.revealedBlocks || 0,
           totalBlocks: data.totalBlocks || 180,
-          // 2. FIXED SNAPSHOT: Pull the array from Firebase
           shuffledIndices: data.shuffledIndices || [], 
         };
       });
@@ -96,7 +129,7 @@ export default function GalleryPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // ADDED: REAL-TIME FIRESTORE SYNC (STATIC ITEMS)
+  // REAL-TIME FIRESTORE SYNC (STATIC ITEMS)
   useEffect(() => {
     if (!user) return;
 
@@ -128,7 +161,6 @@ export default function GalleryPage() {
     if (!container) return;
     
     const handleNativeWheel = (e: WheelEvent) => {
-      // FIX 1: If any modal is open, completely abort the zoom!
       if (isModalOpen || isCreateModalOpen || isMenuOpen) return; 
       
       e.preventDefault();
@@ -141,12 +173,9 @@ export default function GalleryPage() {
     
     container.addEventListener("wheel", handleNativeWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleNativeWheel);
-    
-  // FIX 2: We must add the modal states to the dependency array so the hook knows when they open/close
   }, [scale, isModalOpen, isCreateModalOpen, isMenuOpen]);
 
   const handleWheel = (e: React.WheelEvent) => {
-    // FIX 3: Apply the same abort logic to the React scroll event
     if (isModalOpen || isCreateModalOpen || isMenuOpen) return;
     
     const sensitivity = 0.001; 
@@ -169,7 +198,7 @@ export default function GalleryPage() {
     }
   };
 
-  // ADDED: SYNC DRAG COORDINATES TO DATABASE (STATIC ITEMS)
+  // SYNC DRAG COORDINATES TO DATABASE (STATIC ITEMS)
   const handleItemDragEnd = async (id: string, info: any) => {
     const item = items.find(i => i.id === id);
     if (!item) return;
@@ -196,9 +225,9 @@ export default function GalleryPage() {
       <SideMenu 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
-        onColorSelect={setWallColor}
+        onColorSelect={handleColorSelect} // CHANGED: Now uses our new database function
         onCreateClick={() => setIsCreateModalOpen(true)}
-        onSpawnItem={handleSpawnItem} // ADDED: Passed the spawn function down to the menu
+        onSpawnItem={handleSpawnItem} 
       />
 
       <CreatePaintingModal 
@@ -233,7 +262,7 @@ export default function GalleryPage() {
         )}
       </div>
 
-      {/* 2. THE WORLD (Live from Firestore) */}
+      {/* 2. THE WORLD */}
       <motion.div
         drag
         dragMomentum={false}
@@ -256,7 +285,6 @@ export default function GalleryPage() {
             whileDrag={{ scale: 1.1, zIndex: 100 }}
             className="absolute cursor-grab active:cursor-grabbing"
           >
-            {/* 3. FIXED PROPS: Passing all required data to the Frame */}
             <PaintingFrame 
               src={frame.src} 
               title={frame.title} 
@@ -273,7 +301,7 @@ export default function GalleryPage() {
           </motion.div>
         ))}
 
-        {/* ADDED: STATIC ITEMS */}
+        {/* STATIC ITEMS WITH DELETE HOVER */}
         {items.map((item) => (
           <motion.div
             key={item.id}
@@ -283,8 +311,19 @@ export default function GalleryPage() {
             animate={{ x: item.x, y: item.y }}
             onDragEnd={(e, info) => handleItemDragEnd(item.id, info)}
             whileDrag={{ scale: 1.1, zIndex: 100 }}
-            className="absolute cursor-grab active:cursor-grabbing"
+            className="absolute cursor-grab active:cursor-grabbing group" 
           >
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); 
+                handleDeleteItem(item.id);
+              }}
+              onPointerDown={(e) => e.stopPropagation()} 
+              className="absolute -top-4 -left-4 w-8 h-8 bg-app-accent border-2 border-app-border text-app-card rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 shadow-sm hover:scale-110"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+
             <img 
               src={item.src} 
               alt="Gallery item" 

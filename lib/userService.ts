@@ -34,3 +34,17 @@ export const getUserDocument = async (uid: string): Promise<UserProfile | null> 
   
   return null;
 };
+
+/**
+ * Updates the user's preferred gallery background color.
+ */
+export const updateGalleryColor = async (uid: string, color: string | null) => {
+  try {
+    const userRef = doc(db, "users", uid);
+    // merge: true ensures we only update the color and don't overwrite their username or avatar
+    await setDoc(userRef, { galleryColor: color }, { merge: true });
+  } catch (error) {
+    console.error("Error updating gallery color:", error);
+    throw error;
+  }
+};

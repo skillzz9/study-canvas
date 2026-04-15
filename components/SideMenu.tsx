@@ -3,13 +3,14 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { spawnItem } from "@/lib/itemService";
 import { useAuth } from "@/context/AuthContext";
+import { updateGalleryColor } from "@/lib/userService"; // ADDED: Import the service
 
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onColorSelect: (color: string | null) => void;
   onCreateClick: () => void; 
-  onSpawnItem?: (itemSrc: string) => void; // ADDED: Ready for the next step!
+  onSpawnItem?: (itemSrc: string) => void; 
 }
 
 const wallPresets = [
@@ -21,7 +22,6 @@ const wallPresets = [
   { name: "Deep Ink", value: "#1a1c1e", hex: "#1a1c1e" },
 ];
 
-// ADDED: List of static items matching your public folder
 const staticItems = [
   { name: "Books", src: "/items/books.png" },
   { name: "Candle", src: "/items/candle.png" },
@@ -29,20 +29,33 @@ const staticItems = [
 
 export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick, onSpawnItem }: SideMenuProps) {
   const [isColorOpen, setIsColorOpen] = useState(false);
-  const [isStaticItemsOpen, setIsStaticItemsOpen] = useState(false); // ADDED: State for the new dropdown
+  const [isStaticItemsOpen, setIsStaticItemsOpen] = useState(false); 
   const { user } = useAuth();
 
   const handleSpawnClick = async (itemSrc: string) => {
     if (!user) return;
     
-    // Drop it in the center of their current window view
     const startX = window.innerWidth / 2;
     const startY = window.innerHeight / 2;
   
     await spawnItem(user.uid, itemSrc, startX, startY);
     
-    // Optional: Call the prop if the parent needs to know an item was spawned
     onSpawnItem?.(itemSrc);
+  };
+
+  // ADDED: New function to handle both the UI update and the database save
+  const handleColorClick = async (color: string | null) => {
+    // 1. Instantly update the background color in the GalleryPage
+    onColorSelect(color);
+
+    // 2. Save it directly to the database
+    if (user) {
+      try {
+        await updateGalleryColor(user.uid, color);
+      } catch (error) {
+        console.error("Failed to save wall color:", error);
+      }
+    }
   };
 
   return (
@@ -85,7 +98,7 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
                       {wallPresets.map((preset) => (
                         <button
                           key={preset.name}
-                          onClick={() => onColorSelect(preset.value)}
+                          onClick={() => handleColorClick(preset.value)} // UPDATED: Calls the new function
                           className="flex items-center gap-3 p-2 hover:bg-app-accent/10 rounded-lg transition-colors group"
                         >
                           <div 
@@ -110,7 +123,7 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
                 <span className="text-xl">🖼️</span> Create new painting
               </button>
 
-              {/* STATIC ITEMS DROPDOWN (NEW) */}
+              {/* STATIC ITEMS DROPDOWN */}
               <div className="flex flex-col gap-2">
                 <button 
                   onClick={() => setIsStaticItemsOpen(!isStaticItemsOpen)}

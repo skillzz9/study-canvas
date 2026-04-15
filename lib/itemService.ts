@@ -57,9 +57,7 @@ export async function updateItemPosition(itemId: string, x: number, y: number) {
   }
 }
 
-/**
- * Deletes an item from the wall.
- */
+
 export async function deleteItem(itemId: string) {
   try {
     const itemRef = doc(db, "galleryItems", itemId);
