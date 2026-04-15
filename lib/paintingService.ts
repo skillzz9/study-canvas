@@ -21,20 +21,21 @@ export interface PaintingData {
   targetHours: number;
   totalBlocks: number;
   revealedBlocks: number;
-  shuffledIndices: number[]; // The master reveal sequence
+  shuffledIndices: number[]; 
   imageUrl: string | null;
-  status: "in-progress" | "completed";
+  // UPDATED: Added 'idle' and 'active' to match the merged room logic
+  status: "idle" | "active" | "in-progress" | "completed"; 
+  // NEW: Added the stopwatch variables required by the Study Room
+  accumulatedMs?: number;
+  lastStartTime?: Timestamp | null;
+  sessionStartedAt?: Timestamp | null;
   createdAt: Timestamp | any; 
   position: { x: number; y: number };
-  collaborators: string[]; // For shared paintings logic
+  collaborators: string[]; 
 }
 
 // --- HELPERS ---
 
-/**
- * Generates indices layer-by-layer to ensure the background fills 
- * before the foreground, but keeps each layer's reveal random.
- */
 function generateShuffledIndices(gridSize: number, totalLayers: number): number[] {
   const BLOCKS_PER_LAYER = gridSize * gridSize;
   const indices: number[] = [];
@@ -43,7 +44,6 @@ function generateShuffledIndices(gridSize: number, totalLayers: number): number[
     const start = i * BLOCKS_PER_LAYER;
     const layerIndices = Array.from({ length: BLOCKS_PER_LAYER }, (_, j) => start + j);
 
-    // Fisher-Yates shuffle ONLY the current layer
     for (let k = layerIndices.length - 1; k > 0; k--) {
       const r = Math.floor(Math.random() * (k + 1));
       [layerIndices[k], layerIndices[r]] = [layerIndices[r], layerIndices[k]];
@@ -82,10 +82,15 @@ export async function createPainting(
       shuffledIndices, 
       revealedBlocks: 0,
       imageUrl,
-      status: "in-progress",
+      // UPDATED: Set to idle initially so the Start button works!
+      status: "idle", 
+      // NEW: Added the baseline stopwatch variables
+      accumulatedMs: 0,
+      lastStartTime: null,
+      sessionStartedAt: null,
       createdAt: serverTimestamp(),
       position: { x: 0, y: 0 },
-      collaborators: [userId] // Creator is the first collaborator
+      collaborators: [userId] 
     };
 
     const docRef = await addDoc(collection(db, "paintings"), newPainting);
@@ -97,11 +102,10 @@ export async function createPainting(
 }
 
 /**
- * Fetches all paintings for a specific user (as owner or collaborator).
+ * Fetches all paintings for a specific user.
  */
 export async function getUserPaintings(userId: string): Promise<PaintingData[]> {
   try {
-    // This query finds paintings where the user is in the collaborators list
     const q = query(
       collection(db, "paintings"), 
       where("collaborators", "array-contains", userId),
@@ -148,7 +152,7 @@ export async function updatePaintingProgress(paintingId: string, newRevealedCoun
     
     await updateDoc(paintingRef, {
       revealedBlocks: newRevealedCount,
-      status: isFinished ? "completed" : "in-progress"
+      status: isFinished ? "completed" : "in-progress" // This will correctly flip to completed at the end!
     });
   } catch (error) {
     console.error("Error updating painting progress:", error);

@@ -177,7 +177,7 @@ export default function PictureModal({
                       Canvas Completion
                     </h4>
                     <p className="text-4xl font-black tabular-nums tracking-tight text-app-text mb-1">
-                      0h / 1h
+                      1h / 1h
                     </p>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-app-text/50">
                       {percentage}% Complete

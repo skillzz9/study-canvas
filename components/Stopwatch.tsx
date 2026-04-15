@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { startGlobalRoom } from "@/lib/roomService";
+// 1. DELETE THE ROOM SERVICE IMPORT!
 
 interface StopwatchProps {
   secondsElapsed: number;
@@ -11,6 +11,7 @@ interface StopwatchProps {
   roomStatus: string; 
   revealedCount: number;
   totalSessionBlocks: number;
+  onStart: () => void; // 2. Ensure onStart is in your interface
 }
 
 export default function Stopwatch({ 
@@ -21,7 +22,8 @@ export default function Stopwatch({
   onFinish,
   roomStatus,
   revealedCount,
-  totalSessionBlocks
+  totalSessionBlocks,
+  onStart // 3. Destructure the prop here
 }: StopwatchProps) {
   
   // Calculate percentage based on revealed blocks
@@ -47,13 +49,12 @@ export default function Stopwatch({
           {/* START BUTTON vs LIVE INDICATOR */}
           {roomStatus === "idle" ? (
             <button 
-              onClick={() => startGlobalRoom()}
+              onClick={onStart} // 4. CALL THE PROP HERE INSTEAD OF THE OLD FUNCTION!
               className="w-20 py-4 border-4 border-app-border rounded-3xl font-bold uppercase bg-app-accent text-app-card shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center justify-center"
             >
               <span className="text-xs">Start</span>
             </button>
           ) : (
-            /* UPDATED LIVE BUTTON: Now matches app-accent theme */
             <div className="w-20 py-4 border-4 border-app-border rounded-3xl font-bold uppercase bg-app-accent text-app-card shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] flex items-center justify-center gap-1.5 transition-colors duration-300">
               <span className="w-2 h-2 bg-app-card rounded-full animate-pulse" />
               <span className="text-xs">Live</span>

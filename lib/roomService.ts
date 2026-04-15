@@ -67,7 +67,10 @@ export const joinOrCreateGlobalRoom = async (uid: string, paintingId: string, to
         const lastStart = roomData.lastStartTime.toDate().getTime();
         const msSinceLastChange = now - lastStart;
 
-        const collectiveMs = msSinceLastChange * (roomData.numOfAvatars || 1);
+        // CHANGED: Added 3x multiplier for the demo
+        const TIMELAPSE_MULTIPLIER = 3;
+        const collectiveMs = (msSinceLastChange * TIMELAPSE_MULTIPLIER) * (roomData.numOfAvatars || 1);
+        
         updateData.accumulatedMs = (roomData.accumulatedMs || 0) + collectiveMs;
         updateData.lastStartTime = serverTimestamp();
       }
@@ -110,7 +113,10 @@ export const leaveGlobalRoom = async (uid: string, paintingId: string) => {
     
     // Only calculate elapsed time if the room was active
     const msSinceLastChange = isActive ? (now - lastStart) : 0;
-    const collectiveMs = msSinceLastChange * (roomData.numOfAvatars || 1);
+    
+    // CHANGED: Added 3x multiplier for the demo
+    const TIMELAPSE_MULTIPLIER = 3;
+    const collectiveMs = (msSinceLastChange * TIMELAPSE_MULTIPLIER) * (roomData.numOfAvatars || 1);
     
     const newCount = Math.max(0, roomData.numOfAvatars - 1);
 

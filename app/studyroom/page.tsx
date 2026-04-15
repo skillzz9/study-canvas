@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import confetti from 'canvas-confetti';
 import { useRouter, useSearchParams } from "next/navigation";
-import { doc, onSnapshot, collection, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Level from "@/components/Level";
 import GridRevealMask from "@/components/GridRevealMask";
@@ -42,10 +42,10 @@ function StudyRoomContent() {
   
   const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
   const [stableSessionStart, setStableSessionStart] = useState<number | null>(null);
-  const [roomStatus, setRoomStatus] = useState("active"); // Default to active for the demo
+  const [roomStatus, setRoomStatus] = useState("active"); 
 
-  const [gridSize, setGridSize] = useState(6); // Changed to 6 based on your paintingService
-  const [totalLayers, setTotalLayers] = useState(5); // Changed to 5 based on your paintingService
+  const [gridSize, setGridSize] = useState(6); 
+  const [totalLayers, setTotalLayers] = useState(5); 
 
   const blocksPerLayer = gridSize * gridSize;
   const totalSessionBlocks = blocksPerLayer * totalLayers;
@@ -58,7 +58,6 @@ function StudyRoomContent() {
 
   const handleExitRoom = async () => {
     if (user && paintingId) {
-      // FIX: Pass paintingId so it deletes from the correct room
       await leaveGlobalRoom(user.uid, paintingId); 
       router.push("/");
     }
@@ -76,13 +75,11 @@ function StudyRoomContent() {
       if (snapshot.exists()) {
         const data = snapshot.data();
         
-        // Map database fields to our states
         setRevealedCount(data.revealedBlocks || 0); 
-setDbShuffledIndices(data.shuffledIndices || []);
-setStudyImage(data.imageUrl || "/test.png");
-setTargetHours(data.targetHours || 10);
+        setDbShuffledIndices(data.shuffledIndices || []);
+        setStudyImage(data.imageUrl || "/test.png");
+        setTargetHours(data.targetHours || 10);
         
-        // Timer Sync Logic (Fallback for now)
         const currentBankedMs = data.accumulatedMs || 0;
         setBankedMs(currentBankedMs); 
         setSecondsElapsed(currentBankedMs / 1000);
@@ -92,7 +89,6 @@ setTargetHours(data.targetHours || 10);
         if (data.lastStartTime) {
           setGlobalStartTime(data.lastStartTime.toDate().getTime());
         } else {
-           // Start timer immediately if no time exists
            setGlobalStartTime(Date.now());
         }
         
@@ -109,7 +105,6 @@ setTargetHours(data.targetHours || 10);
   useEffect(() => {
     if (!user || !userData || !paintingId) return;
     
-    // FIX: Pass paintingId to updatePresence
     updatePresence(user, userData, paintingId); 
     
     const presenceRef = collection(db, "paintings", paintingId, "presence");
@@ -121,16 +116,15 @@ setTargetHours(data.targetHours || 10);
       setCollaborators(players);
     });
     return () => {
-      // FIX: Pass paintingId to leaveGlobalRoom
       leaveGlobalRoom(user.uid, paintingId);
       unsubscribe();
     };
   }, [user, userData, paintingId]);
 
+  // TIMER WITH 3X MULTIPLIER
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    // 1. ADD THE DEMO MULTIPLIER HERE
     const TIMELAPSE_MULTIPLIER = 3; 
 
     if (globalStartTime && (roomStatus === "active" || roomStatus === "in-progress") && !isSessionComplete) {
@@ -139,7 +133,6 @@ setTargetHours(data.targetHours || 10);
         const msSinceCheckpoint = now - globalStartTime;
         const workerMultiplier = Math.max(1, sortedWorkers.length);
         
-        // 2. MULTIPLY THE REAL TIME BY YOUR DEMO SPEED
         const collectiveMs = (msSinceCheckpoint * TIMELAPSE_MULTIPLIER) * workerMultiplier;
         
         const totalMs = bankedMs + collectiveMs;
@@ -198,18 +191,32 @@ setTargetHours(data.targetHours || 10);
       </main>
     );
   }
-const totalPaintingSeconds = targetHours * 3600; 
-const secondsPerBlock = totalPaintingSeconds / totalSessionBlocks;
 
-// Calculate how many blocks should be revealed based on total time spent
-const targetBlocksCount = Math.min(
-  Math.floor(secondsElapsed / secondsPerBlock),
-  totalSessionBlocks
-);
+  const totalPaintingSeconds = targetHours * 3600; 
+  const secondsPerBlock = totalPaintingSeconds / totalSessionBlocks;
+
+  const targetBlocksCount = Math.min(
+    Math.floor(secondsElapsed / secondsPerBlock),
+    totalSessionBlocks
+  );
   
+  // RESTORED: handleStartSession
+  const handleStartSession = async () => {
+    if (!paintingId) return;
+    try {
+      const paintingRef = doc(db, "paintings", paintingId);
+      await updateDoc(paintingRef, {
+        status: "active",
+        lastStartTime: serverTimestamp(),
+        sessionStartedAt: serverTimestamp() 
+      });
+    } catch (error) {
+      console.error("Error starting session:", error);
+    }
+  };
+
   const handleFinishSession = async () => {
     try {
-      // Instead of deleting the room, we just go home and leave the painting saved
       router.push("/"); 
     } catch (error) {
       console.error("Error ending session:", error);
@@ -259,6 +266,7 @@ const targetBlocksCount = Math.min(
           workerCount={sortedWorkers.length}
           isSessionComplete={isSessionComplete}
           onFinish={handleFinishSession}
+          onStart={handleStartSession} // RESTORED: Passing the prop
           roomStatus={roomStatus}
           revealedCount={revealedCount}
           totalSessionBlocks={totalSessionBlocks}

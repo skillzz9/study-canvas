@@ -190,9 +190,6 @@ export default function Avatar({
           className={`w-17 h-17 object-contain ${isBusy && state.y < 450 ? "animate-bounce" : ""}`} 
         />
       </div>
-      <span className="text-[12px] font-mono font-bold text-neutral-500 bg-white/60 px-1 rounded tabular-nums">
-        {stopwatch}
-      </span>
     </div>
   );
 }
