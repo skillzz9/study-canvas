@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { updatePaintingPosition } from "@/lib/paintingService";
+import { spawnItem, updateItemPosition } from "@/lib/itemService"; // ADDED THIS IMPORT
 
 // 1. FIXED INTERFACE: Added shuffledIndices
 interface FrameData {
@@ -25,12 +26,21 @@ interface FrameData {
   shuffledIndices: number[]; 
 }
 
+// ADDED ITEM INTERFACE
+interface ItemData {
+  id: string;
+  x: number;
+  y: number;
+  src: string;
+}
+
 export default function GalleryPage() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   
   const [frames, setFrames] = useState<FrameData[]>([]);
+  const [items, setItems] = useState<ItemData[]>([]); // ADDED ITEMS STATE
   const [scale, setScale] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -43,7 +53,17 @@ export default function GalleryPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isDraggingItem = useRef(false);
 
-  // REAL-TIME FIRESTORE SYNC
+  const handleSpawnItem = async (itemSrc: string) => {
+    if (!user) return;
+    
+    // Drop it in the center of their current window view
+    const startX = window.innerWidth / 2;
+    const startY = window.innerHeight / 2;
+
+    await spawnItem(user.uid, itemSrc, startX, startY);
+  };
+
+  // REAL-TIME FIRESTORE SYNC (PAINTINGS)
   useEffect(() => {
     if (!user) return;
 
@@ -74,6 +94,32 @@ export default function GalleryPage() {
     });
 
     return () => unsubscribe();
+  }, [user]);
+
+  // ADDED: REAL-TIME FIRESTORE SYNC (STATIC ITEMS)
+  useEffect(() => {
+    if (!user) return;
+
+    const qItems = query(
+      collection(db, "galleryItems"),
+      where("userId", "==", user.uid)
+    );
+
+    const unsubscribeItems = onSnapshot(qItems, (snapshot) => {
+      const itemsData = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          x: data.position?.x || 0,
+          y: data.position?.y || 0,
+          src: data.itemSrc || "",
+        };
+      });
+      
+      setItems(itemsData);
+    });
+
+    return () => unsubscribeItems();
   }, [user]);
 
   // WHEEL & ZOOM LOGIC
@@ -108,7 +154,7 @@ export default function GalleryPage() {
     setScale(Math.min(Math.max(scale - delta, 0.1), 3));
   };
 
-  // SYNC DRAG COORDINATES TO DATABASE
+  // SYNC DRAG COORDINATES TO DATABASE (PAINTINGS)
   const handleDragEnd = async (id: string, info: any) => {
     const frame = frames.find(f => f.id === id);
     if (!frame) return;
@@ -120,6 +166,21 @@ export default function GalleryPage() {
       await updatePaintingPosition(id, newX, newY);
     } catch (error) {
       console.error("Failed to save position:", error);
+    }
+  };
+
+  // ADDED: SYNC DRAG COORDINATES TO DATABASE (STATIC ITEMS)
+  const handleItemDragEnd = async (id: string, info: any) => {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+
+    const newX = item.x + info.offset.x / scale;
+    const newY = item.y + info.offset.y / scale;
+
+    try {
+      await updateItemPosition(id, newX, newY);
+    } catch (error) {
+      console.error("Failed to save item position:", error);
     }
   };
 
@@ -137,6 +198,7 @@ export default function GalleryPage() {
         onClose={() => setIsMenuOpen(false)} 
         onColorSelect={setWallColor}
         onCreateClick={() => setIsCreateModalOpen(true)}
+        onSpawnItem={handleSpawnItem} // ADDED: Passed the spawn function down to the menu
       />
 
       <CreatePaintingModal 
@@ -178,6 +240,7 @@ export default function GalleryPage() {
         style={{ x: cameraX, y: cameraY, scale }}
         className="absolute inset-0 flex items-center justify-center cursor-grab active:cursor-grabbing"
       >
+        {/* PAINTINGS */}
         {frames.map((frame) => (
           <motion.div
             key={frame.id}
@@ -209,22 +272,42 @@ export default function GalleryPage() {
             />
           </motion.div>
         ))}
+
+        {/* ADDED: STATIC ITEMS */}
+        {items.map((item) => (
+          <motion.div
+            key={item.id}
+            drag
+            dragMomentum={false}
+            initial={{ x: item.x, y: item.y }}
+            animate={{ x: item.x, y: item.y }}
+            onDragEnd={(e, info) => handleItemDragEnd(item.id, info)}
+            whileDrag={{ scale: 1.1, zIndex: 100 }}
+            className="absolute cursor-grab active:cursor-grabbing"
+          >
+            <img 
+              src={item.src} 
+              alt="Gallery item" 
+              className="w-auto h-auto max-w-[250px] object-contain drop-shadow-xl pointer-events-none" 
+            />
+          </motion.div>
+        ))}
       </motion.div>
 
       {/* 3. MODAL */}
-{selectedFrame && (
-  <PictureModal 
-    isOpen={isModalOpen}
-    onClose={() => setIsModalOpen(false)}
-    id={selectedFrame.id}
-    src={selectedFrame.src}
-    title={selectedFrame.title}
-    date={selectedFrame.subject} 
-    revealedCount={selectedFrame.revealedBlocks}
-    totalBlocks={selectedFrame.totalBlocks}
-    shuffledIndices={selectedFrame.shuffledIndices}
-  />
-)}
+      {selectedFrame && (
+        <PictureModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          id={selectedFrame.id}
+          src={selectedFrame.src}
+          title={selectedFrame.title}
+          date={selectedFrame.subject} 
+          revealedCount={selectedFrame.revealedBlocks}
+          totalBlocks={selectedFrame.totalBlocks}
+          shuffledIndices={selectedFrame.shuffledIndices}
+        />
+      )}
     </main>
   );
 }

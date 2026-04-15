@@ -1,12 +1,15 @@
 "use client";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { spawnItem } from "@/lib/itemService";
+import { useAuth } from "@/context/AuthContext";
 
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onColorSelect: (color: string | null) => void;
-  onCreateClick: () => void; // ADD THIS PROP
+  onCreateClick: () => void; 
+  onSpawnItem?: (itemSrc: string) => void; // ADDED: Ready for the next step!
 }
 
 const wallPresets = [
@@ -18,8 +21,29 @@ const wallPresets = [
   { name: "Deep Ink", value: "#1a1c1e", hex: "#1a1c1e" },
 ];
 
-export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick }: SideMenuProps) {
+// ADDED: List of static items matching your public folder
+const staticItems = [
+  { name: "Books", src: "/items/books.png" },
+  { name: "Candle", src: "/items/candle.png" },
+];
+
+export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick, onSpawnItem }: SideMenuProps) {
   const [isColorOpen, setIsColorOpen] = useState(false);
+  const [isStaticItemsOpen, setIsStaticItemsOpen] = useState(false); // ADDED: State for the new dropdown
+  const { user } = useAuth();
+
+  const handleSpawnClick = async (itemSrc: string) => {
+    if (!user) return;
+    
+    // Drop it in the center of their current window view
+    const startX = window.innerWidth / 2;
+    const startY = window.innerHeight / 2;
+  
+    await spawnItem(user.uid, itemSrc, startX, startY);
+    
+    // Optional: Call the prop if the parent needs to know an item was spawned
+    onSpawnItem?.(itemSrc);
+  };
 
   return (
     <AnimatePresence>
@@ -78,16 +102,56 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
                 </AnimatePresence>
               </div>
 
-              {/* OTHER BUTTONS */}
- <button 
-  onClick={onCreateClick} // UPDATE THIS BUTTON
-  className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-left"
->
-  <span className="text-xl">🖼️</span> Create new painting
-</button>
-              <button className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-left">
-                <span className="text-xl">📦</span> Static items
+              {/* CREATE PAINTING BUTTON */}
+              <button 
+                onClick={onCreateClick}
+                className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-left"
+              >
+                <span className="text-xl">🖼️</span> Create new painting
               </button>
+
+              {/* STATIC ITEMS DROPDOWN (NEW) */}
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => setIsStaticItemsOpen(!isStaticItemsOpen)}
+                  className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-left"
+                >
+                  <span className="flex items-center gap-4">
+                    <span className="text-xl">📦</span> Static items
+                  </span>
+                  <span className={`transition-transform duration-300 ${isStaticItemsOpen ? 'rotate-180' : ''}`}>
+                    ▼
+                  </span>
+                </button>
+
+                <AnimatePresence>
+                  {isStaticItemsOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden flex flex-col gap-2 pl-4"
+                    >
+                      {staticItems.map((item) => (
+                        <button
+                          key={item.name}
+                          onClick={() => handleSpawnClick(item.src)}
+                          className="flex items-center gap-3 p-2 hover:bg-app-accent/10 rounded-lg transition-colors group text-left"
+                        >
+                          <div className="w-8 h-8 rounded border-2 border-app-border bg-app-card flex items-center justify-center p-1 shadow-sm">
+                            <img src={item.src} alt={item.name} className="w-full h-full object-contain" />
+                          </div>
+                          <span className="text-[11px] font-bold uppercase text-app-text group-hover:text-app-accent">
+                            {item.name}
+                          </span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* DYNAMIC ITEMS BUTTON */}
               <button className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all text-left">
                 <span className="text-xl">⚡</span> Dynamic items
               </button>
