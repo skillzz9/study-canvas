@@ -2,6 +2,7 @@
 import React from "react";
 import Window from "@/components/items/Window";
 import CoolGalleryCandle from "@/components/items/Candle";
+import Clock from "@/components/items/Clock";
 
 export default function WindowDemoPage() {
   return (
@@ -13,7 +14,8 @@ export default function WindowDemoPage() {
       <Window theme="dark">
       </Window>
 
-      <CoolGalleryCandle></CoolGalleryCandle>
+      <CoolGalleryCandle theme="dark"></CoolGalleryCandle>
+      <Clock theme="dark"></Clock>
 
     </main>
   );

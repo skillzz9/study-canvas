@@ -14,6 +14,11 @@ import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/f
 import { updatePaintingPosition } from "@/lib/paintingService";
 import { spawnItem, updateItemPosition, deleteItem } from "@/lib/itemService"; 
 
+// IMPORT DYNAMIC COMPONENTS
+import Window from "@/components/items/Window";
+import Candle from "@/components/items/Candle";
+import Clock from "@/components/items/Clock";
+
 interface FrameData {
   id: string;
   x: number;
@@ -324,11 +329,33 @@ export default function GalleryPage() {
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
 
-            <img 
-              src={item.src} 
-              alt="Gallery item" 
-              className="w-auto h-auto max-w-[250px] object-contain drop-shadow-xl pointer-events-none" 
-            />
+            {/* DYNAMIC COMPONENT RENDERING LOGIC */}
+            {/* DYNAMIC COMPONENT RENDERING LOGIC */}
+{item.src === "/items/candle-light.png" ? (
+  <Candle theme="light" /> 
+) : item.src === "/items/candle-dark.png" ? (
+  <Candle theme="dark" />
+) : item.src === "/items/candle.png" ? (
+  <Candle theme={theme as "light" | "dark"} />
+) : item.src === "/items/clock-light.png" ? (
+  <Clock theme="light" />
+) : item.src === "/items/clock-dark.png" ? (
+  <Clock theme="dark" />
+) : item.src === "/items/clock.png" ? (
+  <Clock theme={theme as "light" | "dark"} />
+) : item.src === "/items/window-light.png" ? (
+  <Window theme="light" /> 
+) : item.src === "/items/window-dark.png" ? (
+  <Window theme="dark" />
+) : item.src === "/items/window.png" ? (
+  <Window theme={theme as "light" | "dark"} />
+) : (
+  <img 
+    src={item.src} 
+    alt="Gallery item" 
+    className="w-auto h-auto max-w-[250px] object-contain drop-shadow-xl pointer-events-none" 
+  />
+)}
           </motion.div>
         ))}
       </motion.div>

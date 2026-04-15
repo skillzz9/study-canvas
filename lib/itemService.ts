@@ -22,13 +22,17 @@ export interface GalleryItem {
 
 /**
  * Spawns a new item onto the gallery wall.
+ * Automatically determines if an item is dynamic or static based on its source path.
  */
 export async function spawnItem(userId: string, itemSrc: string, startX: number, startY: number) {
   try {
+    // Determine type based on the source path
+    const isDynamic = itemSrc.includes('candle') || itemSrc.includes('clock');
+    
     const newItem: Omit<GalleryItem, 'id'> = {
       userId,
       itemSrc,
-      type: "static",
+      type: isDynamic ? "dynamic" : "static",
       position: { x: startX, y: startY },
       createdAt: serverTimestamp()
     };
@@ -57,7 +61,9 @@ export async function updateItemPosition(itemId: string, x: number, y: number) {
   }
 }
 
-
+/**
+ * Permanently removes an item from the database.
+ */
 export async function deleteItem(itemId: string) {
   try {
     const itemRef = doc(db, "galleryItems", itemId);
