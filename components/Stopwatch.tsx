@@ -29,13 +29,15 @@ export default function Stopwatch({
   const secondsRemaining = Math.max(0, totalSecondsGoal - secondsElapsed); // figures out what to display on the timer
 
   // HELPER FUNCTION TO FORMAT THE TIME FOR DISPLAYING
-  const formatTime = (totalSeconds: number) => {
-    const hrs = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
+const formatTime = (totalSeconds: number) => {
+    const total = Math.floor(totalSeconds); 
+    const hrs = Math.floor(total / 3600);
+    const mins = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
 
     const hDisplay = hrs > 0 ? `${hrs}:` : "";
-    const mDisplay = mins < 10 && hrs > 0 ? `0${mins}:` : `${mins}:`;
+    // Ensures 05:01 instead of 5:1
+    const mDisplay = hrs > 0 ? (mins < 10 ? `0${mins}:` : `${mins}:`) : `${mins}:`;
     const sDisplay = secs < 10 ? `0${secs}` : `${secs}`;
 
     return `${hDisplay}${mDisplay}${sDisplay}`;

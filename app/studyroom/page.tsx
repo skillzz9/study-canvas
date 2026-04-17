@@ -12,7 +12,7 @@ import Desk from "@/components/Desk";
 import { useAuth } from "@/context/AuthContext";
 import { getUserDocument } from "@/lib/userService";
 import { UserProfile } from "@/types";
-import { updatePresence, leaveGlobalRoom } from "@/lib/roomService";
+import { updatePresence, leaveGlobalRoom, joinOrCreateGlobalRoom } from "@/lib/roomService";
 import Link from "next/link"; 
 import { useTheme } from "next-themes"; 
 
@@ -55,6 +55,60 @@ function StudyRoomContent() {
   }, [collaborators]);
 
   const isSessionComplete = totalSessionBlocks > 0 && revealedCount >= totalSessionBlocks;
+
+  // CONSOLIDATED ROOM INITIALIZATION & CLEANUP
+  useEffect(() => {
+    if (authLoading || !user || !paintingId) return;
+
+    let isMounted = true;
+    let unsubscribePresence: (() => void) | null = null;
+
+    const initializeRoom = async () => {
+      try {
+        // 1. Get user profile
+        const profile = await getUserDocument(user.uid);
+        if (!isMounted) return;
+        setUserData(profile);
+
+        // 2. Join the Global Room (Increment Count)
+        await joinOrCreateGlobalRoom(
+          user.uid,
+          paintingId,
+          totalSessionBlocks,
+          totalMinutes,
+          gridSize,
+          totalLayers
+        );
+
+        // 3. Set Presence
+        await updatePresence(user, profile, paintingId, true);
+
+        // 4. Set up Collaborators Snapshot
+        const presenceRef = collection(db, "paintings", paintingId, "presence");
+        unsubscribePresence = onSnapshot(presenceRef, (snapshot) => {
+          const players = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          if (isMounted) setCollaborators(players);
+        });
+
+      } catch (error) {
+        console.error("Failed to initialize room session:", error);
+      } finally {
+        if (isMounted) setDataLoading(false);
+      }
+    };
+
+    initializeRoom();
+
+    return () => {
+      isMounted = false;
+      // Decrement count and clear presence on unmount
+      leaveGlobalRoom(user.uid, paintingId);
+      if (unsubscribePresence) unsubscribePresence();
+    };
+  }, [user, authLoading, paintingId, totalSessionBlocks, totalMinutes, gridSize, totalLayers]);
 
   const handleExitRoom = async () => {
     if (user && paintingId) {
@@ -100,31 +154,10 @@ function StudyRoomContent() {
     });
     return () => unsubscribe();
   }, [paintingId, router]);
-  
-  // 3. LISTEN FOR PRESENCE (AVATARS) ON THIS SPECIFIC PAINTING
-  useEffect(() => {
-    if (!user || !userData || !paintingId) return;
-    
-    updatePresence(user, userData, paintingId); 
-    
-    const presenceRef = collection(db, "paintings", paintingId, "presence");
-    const unsubscribe = onSnapshot(presenceRef, (snapshot) => {
-      const players = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setCollaborators(players);
-    });
-    return () => {
-      leaveGlobalRoom(user.uid, paintingId);
-      unsubscribe();
-    };
-  }, [user, userData, paintingId]);
 
   // TIMER WITH 3X MULTIPLIER
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    
     const TIMELAPSE_MULTIPLIER = 3; 
 
     if (globalStartTime && (roomStatus === "active" || roomStatus === "in-progress") && !isSessionComplete) {
@@ -150,26 +183,6 @@ function StudyRoomContent() {
       revealedBlocks: revealedCount + 1
     });
   };
-
-  useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push("/login");
-      } else {
-        const fetchUserData = async () => {
-          try {
-            const profile = await getUserDocument(user.uid);
-            setUserData(profile);
-          } catch (error) {
-            console.error("Failed to load profile:", error);
-          } finally {
-            setDataLoading(false);
-          }
-        };
-        fetchUserData();
-      }
-    }
-  }, [user, authLoading, router]);
 
   useEffect(() => {
     if (isSessionComplete) {
@@ -200,7 +213,6 @@ function StudyRoomContent() {
     totalSessionBlocks
   );
   
-  // RESTORED: handleStartSession
   const handleStartSession = async () => {
     if (!paintingId) return;
     try {
@@ -266,7 +278,7 @@ function StudyRoomContent() {
           workerCount={sortedWorkers.length}
           isSessionComplete={isSessionComplete}
           onFinish={handleFinishSession}
-          onStart={handleStartSession} // RESTORED: Passing the prop
+          onStart={handleStartSession} 
           roomStatus={roomStatus}
           revealedCount={revealedCount}
           totalSessionBlocks={totalSessionBlocks}

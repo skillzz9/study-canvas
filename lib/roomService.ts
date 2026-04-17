@@ -54,30 +54,35 @@ export const joinOrCreateGlobalRoom = async (uid: string, paintingId: string, to
 
     // 2. If the room exists, join it
     } else {
-      const roomData = roomSnap.data();
-      const isActive = roomData.status === "active";
+  const roomData = roomSnap.data();
+  
+  // SANITIZER: If the database is currently NaN, we MUST force it back to a number
+  const currentAvatars = isNaN(roomData.numOfAvatars) ? 0 : (roomData.numOfAvatars || 0);
+  const currentAccumulated = isNaN(roomData.accumulatedMs) ? 0 : (roomData.accumulatedMs || 0);
 
-      const updateData: any = {
-        numOfAvatars: increment(1),
-      };
+  const updateData: any = {
+    // We manually set the number instead of using increment() to break the NaN cycle
+    numOfAvatars: currentAvatars + 1,
+    totalMinutes: totalMinutes,
+  };
 
-      // Only bank time and update lastStartTime if the room is ALREADY active
-      if (isActive && roomData.lastStartTime) {
-        const now = Date.now();
-        const lastStart = roomData.lastStartTime.toDate().getTime();
-        const msSinceLastChange = now - lastStart;
+  const isActive = roomData.status === "active";
+  if (isActive && roomData.lastStartTime) {
+    const now = Date.now();
+    const lastStart = roomData.lastStartTime.toDate().getTime();
+    const msSinceLastChange = now - lastStart;
 
-        // CHANGED: Added 3x multiplier for the demo
-        const TIMELAPSE_MULTIPLIER = 3;
-        const collectiveMs = (msSinceLastChange * TIMELAPSE_MULTIPLIER) * (roomData.numOfAvatars || 1);
-        
-        updateData.accumulatedMs = (roomData.accumulatedMs || 0) + collectiveMs;
-        updateData.lastStartTime = serverTimestamp();
-      }
+    const TIMELAPSE_MULTIPLIER = 3;
+    // We use our sanitized currentAvatars here
+    const collectiveMs = (msSinceLastChange * TIMELAPSE_MULTIPLIER) * Math.max(1, currentAvatars);
+    
+    updateData.accumulatedMs = currentAccumulated + collectiveMs;
+    updateData.lastStartTime = serverTimestamp();
+  }
 
-      transaction.update(roomRef, updateData);
-      return "joined";
-    }
+  transaction.update(roomRef, updateData);
+  return "joined";
+}
   });
 };
 
@@ -100,9 +105,10 @@ export const leaveGlobalRoom = async (uid: string, paintingId: string) => {
   const roomRef = doc(db, "paintings", paintingId);
   const presenceRef = doc(db, "paintings", paintingId, "presence", uid);
 
+  // Remove individual presence immediately
   await deleteDoc(presenceRef);
 
-  await runTransaction(db, async (transaction) => {
+  return await runTransaction(db, async (transaction) => {
     const roomSnap = await transaction.get(roomRef);
     if (!roomSnap.exists()) return;
     const roomData = roomSnap.data();
@@ -111,19 +117,15 @@ export const leaveGlobalRoom = async (uid: string, paintingId: string) => {
     const now = Date.now();
     const lastStart = roomData.lastStartTime?.toDate().getTime() || now;
     
-    // Only calculate elapsed time if the room was active
     const msSinceLastChange = isActive ? (now - lastStart) : 0;
-    
-    // CHANGED: Added 3x multiplier for the demo
     const TIMELAPSE_MULTIPLIER = 3;
     const collectiveMs = (msSinceLastChange * TIMELAPSE_MULTIPLIER) * (roomData.numOfAvatars || 1);
     
     const newCount = Math.max(0, roomData.numOfAvatars - 1);
-
+    
     transaction.update(roomRef, {
       accumulatedMs: (roomData.accumulatedMs || 0) + collectiveMs,
       numOfAvatars: newCount,
-      // If 0 avatars are left, the room resets to idle. Otherwise keeps current status.
       status: newCount === 0 ? "idle" : roomData.status,
       lastStartTime: newCount === 0 ? null : (isActive ? serverTimestamp() : null)
     });
