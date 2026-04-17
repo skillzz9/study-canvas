@@ -1,15 +1,15 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { motion, useMotionValue } from "framer-motion";
+import { motion, useMotionValue, AnimatePresence } from "framer-motion";
 import PaintingFrame from "@/components/PaintingFrame";
 import PictureModal from "@/components/PictureModal";
 import SideMenu from "@/components/SideMenu";
 import CreatePaintingModal from "@/components/CreatePaintingModal";
+import ItemToolbar from "@/components/ItemToolbar"; // IMPORTED
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
-// ADDED doc and updateDoc for the user profile
 import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { updatePaintingPosition } from "@/lib/paintingService";
 import { spawnItem, updateItemPosition, deleteItem } from "@/lib/itemService"; 
@@ -36,6 +36,7 @@ interface ItemData {
   x: number;
   y: number;
   src: string;
+  zIndex: number; // ADDED
 }
 
 export default function GalleryPage() {
@@ -56,6 +57,9 @@ export default function GalleryPage() {
   const [selectedFrame, setSelectedFrame] = useState<FrameData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isDraggingItem = useRef(false);
+
+  // NEW STATE FOR TOOLBAR
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   // ADDED: Save Wall Color to Database
   const handleColorSelect = async (color: string | null) => {
@@ -80,9 +84,29 @@ export default function GalleryPage() {
   const handleDeleteItem = async (id: string) => {
     try {
       await deleteItem(id);
+      setSelectedItemId(null);
     } catch (error) {
       console.error("Failed to delete item:", error);
     }
+  };
+
+  // PERSISTENT Z-INDEX HANDLERS
+  const handleBringToFront = async (id: string) => {
+    if (!user) return;
+    const maxZ = items.length > 0 ? Math.max(...items.map(i => i.zIndex)) : 0;
+    try {
+      const itemRef = doc(db, "galleryItems", id);
+      await updateDoc(itemRef, { zIndex: maxZ + 1 });
+    } catch (e) { console.error(e); }
+  };
+
+  const handleBringToBack = async (id: string) => {
+    if (!user) return;
+    const minZ = items.length > 0 ? Math.min(...items.map(i => i.zIndex)) : 0;
+    try {
+      const itemRef = doc(db, "galleryItems", id);
+      await updateDoc(itemRef, { zIndex: minZ - 1 });
+    } catch (e) { console.error(e); }
   };
 
   // ADDED: REAL-TIME FIRESTORE SYNC (USER PROFILE FOR WALL COLOR)
@@ -151,6 +175,7 @@ export default function GalleryPage() {
           x: data.position?.x || 0,
           y: data.position?.y || 0,
           src: data.itemSrc || "",
+          zIndex: data.zIndex || 0, // PULL Z-INDEX
         };
       });
       
@@ -224,13 +249,14 @@ export default function GalleryPage() {
     <main 
       className="relative w-full h-screen bg-app-bg overflow-hidden font-space select-none transition-colors duration-300"
       onWheel={handleWheel}
+      onClick={() => setSelectedItemId(null)} // DESELECT ON WALL CLICK
       ref={containerRef}
       style={{ backgroundColor: wallColor || undefined }}
     >
       <SideMenu 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
-        onColorSelect={handleColorSelect} // CHANGED: Now uses our new database function
+        onColorSelect={handleColorSelect} 
         onCreateClick={() => setIsCreateModalOpen(true)}
         onSpawnItem={handleSpawnItem} 
       />
@@ -287,7 +313,7 @@ export default function GalleryPage() {
               setTimeout(() => { isDraggingItem.current = false; }, 100);
               handleDragEnd(frame.id, info);
             }}
-            whileDrag={{ scale: 1.1, zIndex: 100 }}
+            whileDrag={{ zIndex: 100 }}
             className="absolute cursor-grab active:cursor-grabbing"
           >
             <PaintingFrame 
@@ -306,7 +332,7 @@ export default function GalleryPage() {
           </motion.div>
         ))}
 
-        {/* STATIC ITEMS WITH DELETE HOVER */}
+        {/* STATIC ITEMS */}
         {items.map((item) => (
           <motion.div
             key={item.id}
@@ -315,47 +341,54 @@ export default function GalleryPage() {
             initial={{ x: item.x, y: item.y }}
             animate={{ x: item.x, y: item.y }}
             onDragEnd={(e, info) => handleItemDragEnd(item.id, info)}
-            whileDrag={{ scale: 1.1, zIndex: 100 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedItemId(item.id);
+            }}
+            whileDrag={{ zIndex: 100 }}
+            style={{ zIndex: item.zIndex || 0 }} // APPLY PERSISTENT Z-INDEX
             className="absolute cursor-grab active:cursor-grabbing group" 
           >
-            <button
-              onClick={(e) => {
-                e.stopPropagation(); 
-                handleDeleteItem(item.id);
-              }}
-              onPointerDown={(e) => e.stopPropagation()} 
-              className="absolute -top-4 -left-4 w-8 h-8 bg-app-accent border-2 border-app-border text-app-card rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 shadow-sm hover:scale-110"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
+            {/* ITEM TOOLBAR POPUP */}
+            <AnimatePresence>
+              {selectedItemId === item.id && (
+                <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-[110]">
+                  <ItemToolbar 
+                    theme={theme as "light" | "dark"}
+                    onDelete={() => handleDeleteItem(item.id)}
+                    onBringToFront={() => handleBringToFront(item.id)}
+                    onBringToBack={() => handleBringToBack(item.id)}
+                  />
+                </div>
+              )}
+            </AnimatePresence>
 
             {/* DYNAMIC COMPONENT RENDERING LOGIC */}
-            {/* DYNAMIC COMPONENT RENDERING LOGIC */}
-{item.src === "/items/candle-light.png" ? (
-  <Candle theme="light" /> 
-) : item.src === "/items/candle-dark.png" ? (
-  <Candle theme="dark" />
-) : item.src === "/items/candle.png" ? (
-  <Candle theme={theme as "light" | "dark"} />
-) : item.src === "/items/clock-light.png" ? (
-  <Clock theme="light" />
-) : item.src === "/items/clock-dark.png" ? (
-  <Clock theme="dark" />
-) : item.src === "/items/clock.png" ? (
-  <Clock theme={theme as "light" | "dark"} />
-) : item.src === "/items/window-light.png" ? (
-  <Window theme="light" /> 
-) : item.src === "/items/window-dark.png" ? (
-  <Window theme="dark" />
-) : item.src === "/items/window.png" ? (
-  <Window theme={theme as "light" | "dark"} />
-) : (
-  <img 
-    src={item.src} 
-    alt="Gallery item" 
-    className="w-auto h-auto max-w-[250px] object-contain drop-shadow-xl pointer-events-none" 
-  />
-)}
+            {item.src === "/items/candle-light.png" ? (
+              <Candle theme="light" /> 
+            ) : item.src === "/items/candle-dark.png" ? (
+              <Candle theme="dark" />
+            ) : item.src === "/items/candle.png" ? (
+              <Candle theme={theme as "light" | "dark"} />
+            ) : item.src === "/items/clock-light.png" ? (
+              <Clock theme="light" />
+            ) : item.src === "/items/clock-dark.png" ? (
+              <Clock theme="dark" />
+            ) : item.src === "/items/clock.png" ? (
+              <Clock theme={theme as "light" | "dark"} />
+            ) : item.src === "/items/window-light.png" ? (
+              <Window theme="light" /> 
+            ) : item.src === "/items/window-dark.png" ? (
+              <Window theme="dark" />
+            ) : item.src === "/items/window.png" ? (
+              <Window theme={theme as "light" | "dark"} />
+            ) : (
+              <img 
+                src={item.src} 
+                alt="Gallery item" 
+                className="w-auto h-auto max-w-[250px] object-contain drop-shadow-xl pointer-events-none" 
+              />
+            )}
           </motion.div>
         ))}
       </motion.div>

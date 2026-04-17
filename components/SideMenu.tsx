@@ -1,11 +1,9 @@
 "use client";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { spawnItem } from "@/lib/itemService";
-import { useAuth } from "@/context/AuthContext";
-import { updateGalleryColor } from "@/lib/userService";
 import { useTheme } from "next-themes";
 
+// IMPORT YOUR LIVE COMPONENTS
 import Window from "@/components/items/Window";
 import Candle from "@/components/items/Candle";
 import Clock from "@/components/items/Clock";
@@ -44,24 +42,13 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
   const [isStaticItemsOpen, setIsStaticItemsOpen] = useState(false); 
   const [isDynamicItemsOpen, setIsDynamicItemsOpen] = useState(false); 
   
-  const { user } = useAuth();
   const { theme } = useTheme();
   const currentTheme = (theme === "light" ? "light" : "dark");
 
-  const handleSpawnClick = async (itemSrc: string) => {
-    if (!user) return;
-    const startX = window.innerWidth / 2;
-    const startY = window.innerHeight / 2;
-    await spawnItem(user.uid, itemSrc, startX, startY);
+  // FIX: This function now ONLY tells the GalleryPage what to spawn.
+  // The GalleryPage will handle the actual Firebase 'spawnItem' call.
+  const handleSpawnClick = (itemSrc: string) => {
     onSpawnItem?.(itemSrc);
-  };
-
-  const handleColorClick = async (color: string | null) => {
-    onColorSelect(color);
-    if (user) {
-      try { await updateGalleryColor(user.uid, color); } 
-      catch (error) { console.error("Failed to save wall color:", error); }
-    }
   };
 
   const renderPreview = (src: string, forcedTheme?: "light" | "dark") => {
@@ -76,7 +63,6 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
         );
       case "/items/candle-light.png":
       case "/items/candle-dark.png":
-      case "/items/candle.png":
         return (
           <div className="w-full h-[60px] flex justify-center items-start origin-top scale-[0.45] pointer-events-none mt-2">
             <Candle theme={appliedTheme} />
@@ -84,7 +70,6 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
         );
       case "/items/clock-light.png":
       case "/items/clock-dark.png":
-      case "/items/clock.png":
         return (
           <div className="w-full h-[80px] flex justify-center items-start origin-top scale-[0.4] pointer-events-none mt-2">
             <Clock theme={appliedTheme} />
@@ -117,7 +102,7 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
                   {isColorOpen && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-2 pl-4">
                       {wallPresets.map((preset) => (
-                        <button key={preset.name} onClick={() => handleColorClick(preset.value)} className="flex items-center gap-3 p-2 hover:bg-app-accent/10 rounded-lg transition-colors group">
+                        <button key={preset.name} onClick={() => onColorSelect(preset.value)} className="flex items-center gap-3 p-2 hover:bg-app-accent/10 rounded-lg transition-colors group">
                           <div className="w-6 h-6 rounded-full border-2 border-app-border shadow-sm" style={{ backgroundColor: preset.hex }} />
                           <span className="text-[11px] font-bold uppercase text-app-text group-hover:text-app-accent">{preset.name}</span>
                         </button>

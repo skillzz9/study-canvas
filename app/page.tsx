@@ -72,7 +72,8 @@ export default function Home() {
         localStorage.setItem("studyTime", calculatedTotalMinutes.toString());
 
         await joinOrCreateGlobalRoom(
-          user.uid, 
+          user.uid,
+          "painting", 
           TOTAL_BLOCKS, 
           calculatedTotalMinutes, 
           GRID_SIZE, 
