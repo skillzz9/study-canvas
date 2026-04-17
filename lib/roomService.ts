@@ -20,61 +20,39 @@ export const joinOrCreateGlobalRoom = async (uid: string, paintingId: string, to
   return await runTransaction(db, async (transaction) => {
     const roomSnap = await transaction.get(roomRef);
     
-    // CASE A: The document doesn't exist at all
+    // 1. COMPLETELY NEW
     if (!roomSnap.exists()) {
       const indices = generateShuffledIndices(gridSize, totalLayers);
       transaction.set(roomRef, {
-        gridSize,
-        totalLayers,
-        status: "idle",
-        numOfAvatars: 1,
-        revealedBlocks: 0,
-        totalNumberOfBlocks: totalBlocks,
-        totalMinutes, 
-        shuffledIndices: indices,
-        accumulatedMs: 0,
-        lastStartTime: null,
-        createdBy: uid
+        gridSize, totalLayers, status: "idle", numOfAvatars: 1,
+        revealedBlocks: 0, totalNumberOfBlocks: totalBlocks,
+        totalMinutes, shuffledIndices: indices, accumulatedMs: 0,
+        lastStartTime: null, createdBy: uid
       });
       return "created";
     }
 
     const roomData = roomSnap.data();
     
-    // CASE B: Doc exists (from Modal) but hasn't been turned into a "Room" yet
+    // 2. INITIALIZE (Fixes the "0 avatars" bug for modal-created paintings)
     if (!roomData.status || roomData.numOfAvatars === undefined) {
       const indices = roomData.shuffledIndices || generateShuffledIndices(gridSize, totalLayers);
       transaction.update(roomRef, {
-        status: "idle",
-        numOfAvatars: 1,
+        status: "idle", numOfAvatars: 1,
         revealedBlocks: roomData.revealedBlocks || 0,
-        shuffledIndices: indices,
-        accumulatedMs: 0,
-        lastStartTime: null,
-        // Ensure gridSize/layers are set if modal missed them
-        gridSize: roomData.gridSize || gridSize,
+        shuffledIndices: indices, accumulatedMs: roomData.accumulatedMs || 0,
+        lastStartTime: null, gridSize: roomData.gridSize || gridSize,
         totalLayers: roomData.totalLayers || totalLayers
       });
       return "initialized";
     }
 
-    // CASE C: Room is already active/idle with people in it
+    // 3. STANDARD JOIN
     const currentAvatars = isNaN(roomData.numOfAvatars) ? 0 : roomData.numOfAvatars;
-    const updateData: any = {
+    transaction.update(roomRef, {
       numOfAvatars: currentAvatars + 1,
-    };
-
-    if (roomData.status === "active" && roomData.lastStartTime) {
-      const now = Date.now();
-      const lastStart = roomData.lastStartTime.toDate().getTime();
-      const TIMELAPSE_MULTIPLIER = 3;
-      const collectiveMs = (now - lastStart) * TIMELAPSE_MULTIPLIER * Math.max(1, currentAvatars);
-      
-      updateData.accumulatedMs = (roomData.accumulatedMs || 0) + collectiveMs;
-      updateData.lastStartTime = serverTimestamp();
-    }
-
-    transaction.update(roomRef, updateData);
+      totalMinutes: totalMinutes // Updates the goal to your current input
+    });
     return "joined";
   });
 };
@@ -95,14 +73,15 @@ function generateShuffledIndices(gridSize: number, totalLayers: number) {
   return indices;
 }
 
-export const startGlobalRoom = async (paintingId: string) => {
+export const startGlobalRoom = async (paintingId: string, currentAccumulatedMs: number) => {
   const roomRef = doc(db, "paintings", paintingId);
   const now = serverTimestamp();
   await updateDoc(roomRef, {
     status: "active",
     lastStartTime: now,
-    // ADD THIS: This is the "Anchor" for the individual stopwatches
-    sessionStartedAt: now 
+    sessionStartedAt: now,
+    // THE FIX: Save the work already done as the "Baseline" for this session
+    sessionBaseMs: currentAccumulatedMs 
   });
 };
 

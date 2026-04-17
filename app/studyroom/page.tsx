@@ -47,6 +47,9 @@ function StudyRoomContent() {
   const [gridSize, setGridSize] = useState(6); 
   const [totalLayers, setTotalLayers] = useState(5); 
 
+  // NEW: Session baseline to handle the timer reset
+  const [sessionBaseMs, setSessionBaseMs] = useState(0);
+
   const blocksPerLayer = gridSize * gridSize;
   const totalSessionBlocks = blocksPerLayer * totalLayers;
 
@@ -137,6 +140,9 @@ function StudyRoomContent() {
         const currentBankedMs = data.accumulatedMs || 0;
         setBankedMs(currentBankedMs); 
         setSecondsElapsed(currentBankedMs / 1000);
+
+        // SYNC SESSION BASELINE
+        setSessionBaseMs(data.sessionBaseMs || 0);
         
         if (data.status) setRoomStatus(data.status); 
         
@@ -212,6 +218,11 @@ function StudyRoomContent() {
     Math.floor(secondsElapsed / secondsPerBlock),
     totalSessionBlocks
   );
+
+  // NEW: Calculate elapsed seconds just for this session
+  const sessionSeconds = roomStatus === "idle" 
+  ? 0 
+  : Math.max(0, secondsElapsed - (sessionBaseMs / 1000));
   
   const handleStartSession = async () => {
     if (!paintingId) return;
@@ -220,7 +231,9 @@ function StudyRoomContent() {
       await updateDoc(paintingRef, {
         status: "active",
         lastStartTime: serverTimestamp(),
-        sessionStartedAt: serverTimestamp() 
+        sessionStartedAt: serverTimestamp(),
+        // LOCK IN CURRENT PROGRESS AS THE TIMER STARTING POINT
+        sessionBaseMs: bankedMs 
       });
     } catch (error) {
       console.error("Error starting session:", error);
@@ -273,7 +286,7 @@ function StudyRoomContent() {
         </div>
 
         <Stopwatch 
-          secondsElapsed={secondsElapsed} 
+          secondsElapsed={sessionSeconds}
           totalMinutes={totalMinutes}
           workerCount={sortedWorkers.length}
           isSessionComplete={isSessionComplete}
