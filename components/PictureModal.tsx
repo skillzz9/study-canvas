@@ -28,31 +28,38 @@ export default function PictureModal({
   date,
   revealedCount,
   totalBlocks,
-  shuffledIndices,
+  shuffledIndices, // the array of how the drawing should progress
   targetHours = 10,          
   dateCreated = "APR 14, 2026"   
 }: PictureModalProps) {
   const router = useRouter();
 
-  // STATE
+  // SETTING TITLE OF THE PAINTING //
   const [localTitle, setLocalTitle] = useState(title);
   const [isEditing, setIsEditing] = useState(false);
-  const [sessionGoal, setSessionGoal] = useState<number>(60); // Default 60 minutes
 
-  // DERIVED DATA
+  // SESSION GOAL FOR TIMER //
+  const [sessionGoal, setSessionGoal] = useState<number>(60);
+
+  // DISPLAYS PERCENTAGE COMPLETION OF PAINTING BASED ON REVEALBED BLOCKS//
   const percentage = Math.round((revealedCount / totalBlocks) * 100);
   const isFinished = revealedCount >= totalBlocks;
   
-  // Calculate hours left
-  const hoursGoal = targetHours;
-  const hoursLeft = Math.max(0, ((totalBlocks - revealedCount) / totalBlocks) * hoursGoal).toFixed(1);
+  // CALCULATES THE COMPLEITION BASED ON TIME // 
+const hoursGoal = targetHours;
+const progressFraction = (totalBlocks - revealedCount) / totalBlocks;
+const hoursLeftRaw = Math.max(0, progressFraction * hoursGoal);
+const hoursCompletedRaw = hoursGoal - hoursLeftRaw; 
 
-  // Exact same math from your Study Room and Gallery
+  // HARD CODED CANVAS SETTINGS //
   const gridSize = 6;
   const blocksPerLayer = gridSize * gridSize;
   const totalLayers = Math.floor(totalBlocks / blocksPerLayer); 
   
+  // WHERE ARE WE AT INSIDE SHUFFLED INDICIES
   const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
+
+  // FIGURES OUT WHICH LAYERS TO DISPLAY
   const baseLevel = isFinished ? 6 : (currentLayerIndex + 1);
   const topLevel = currentLayerIndex + 2;
 
@@ -177,7 +184,7 @@ export default function PictureModal({
                       Canvas Completion
                     </h4>
                     <p className="text-4xl font-black tabular-nums tracking-tight text-app-text mb-1">
-                      1h / 1h
+                      {hoursCompletedRaw}h / {hoursGoal}h 
                     </p>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-app-text/50">
                       {percentage}% Complete

@@ -16,13 +16,14 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   
+  // DEFAULT VALUES FOR DATA //
   const [formData, setFormData] = useState({
     title: "",
     subject: "",
-    hours: 10,
+    hours: 10, // default value of 10 to display
     isShared: false,
   });
-
+  // NOT UPLOADING TO DATABASE, JUST SAVING LOCALLY
   const handleFile = (file: File) => {
     if (file && file.type.startsWith("image/")) {
       setPreviewUrl(URL.createObjectURL(file));
@@ -31,12 +32,15 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
     }
   };
 
+
+  // CREATES PAINTING IN DATABASE. 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setLoading(true);
 
     try {
+      // CALLS PAINTING SERVICE FUNCTION WHICH ALSO MAKES THE INDEX LIST //
       await createPainting(
         user.uid,
         formData.title,
