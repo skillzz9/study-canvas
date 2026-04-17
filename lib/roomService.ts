@@ -14,77 +14,86 @@ import {
  * Banks the current stopwatch progress multiplied by the current number of workers
  * before changing the avatar count to ensure "Collective Study" accuracy.
  */
-export const joinOrCreateGlobalRoom = async (uid: string, paintingId: string, totalBlocks: number, totalMinutes: number, gridSize: number, 
-  totalLayers: number) => {
+export const joinOrCreateGlobalRoom = async (uid: string, paintingId: string, totalBlocks: number, totalMinutes: number, gridSize: number, totalLayers: number) => {
   const roomRef = doc(db, "paintings", paintingId);
 
   return await runTransaction(db, async (transaction) => {
     const roomSnap = await transaction.get(roomRef);
     
-    // 1. If the room doesn't exist, create it from scratch
+    // CASE A: The document doesn't exist at all
     if (!roomSnap.exists()) {
-      const BLOCKS_PER_LAYER = gridSize * gridSize;
-      const indices = [];
-
-      for (let i = 0; i < totalLayers; i++) {
-        const start = i * BLOCKS_PER_LAYER;
-        const layerJobIds = Array.from({ length: BLOCKS_PER_LAYER }, (_, j) => start + j);
-
-        for (let k = layerJobIds.length - 1; k > 0; k--) {
-          const r = Math.floor(Math.random() * (k + 1));
-          [layerJobIds[k], layerJobIds[r]] = [layerJobIds[r], layerJobIds[k]];
-        }
-        indices.push(...layerJobIds);
-      }
-
+      const indices = generateShuffledIndices(gridSize, totalLayers);
       transaction.set(roomRef, {
-        gridSize: gridSize,
-        totalLayers: totalLayers,
-        status: "idle", // Start as idle so the first user must click Start
+        gridSize,
+        totalLayers,
+        status: "idle",
         numOfAvatars: 1,
-        revealedCount: 0,
+        revealedBlocks: 0,
         totalNumberOfBlocks: totalBlocks,
-        totalMinutes: totalMinutes, 
+        totalMinutes, 
         shuffledIndices: indices,
         accumulatedMs: 0,
-        lastStartTime: null, // No start time until Start is clicked
+        lastStartTime: null,
         createdBy: uid
       });
       return "created";
+    }
 
-    // 2. If the room exists, join it
-    } else {
-  const roomData = roomSnap.data();
-  
-  // SANITIZER: If the database is currently NaN, we MUST force it back to a number
-  const currentAvatars = isNaN(roomData.numOfAvatars) ? 0 : (roomData.numOfAvatars || 0);
-  const currentAccumulated = isNaN(roomData.accumulatedMs) ? 0 : (roomData.accumulatedMs || 0);
-
-  const updateData: any = {
-    // We manually set the number instead of using increment() to break the NaN cycle
-    numOfAvatars: currentAvatars + 1,
-    totalMinutes: totalMinutes,
-  };
-
-  const isActive = roomData.status === "active";
-  if (isActive && roomData.lastStartTime) {
-    const now = Date.now();
-    const lastStart = roomData.lastStartTime.toDate().getTime();
-    const msSinceLastChange = now - lastStart;
-
-    const TIMELAPSE_MULTIPLIER = 3;
-    // We use our sanitized currentAvatars here
-    const collectiveMs = (msSinceLastChange * TIMELAPSE_MULTIPLIER) * Math.max(1, currentAvatars);
+    const roomData = roomSnap.data();
     
-    updateData.accumulatedMs = currentAccumulated + collectiveMs;
-    updateData.lastStartTime = serverTimestamp();
-  }
+    // CASE B: Doc exists (from Modal) but hasn't been turned into a "Room" yet
+    if (!roomData.status || roomData.numOfAvatars === undefined) {
+      const indices = roomData.shuffledIndices || generateShuffledIndices(gridSize, totalLayers);
+      transaction.update(roomRef, {
+        status: "idle",
+        numOfAvatars: 1,
+        revealedBlocks: roomData.revealedBlocks || 0,
+        shuffledIndices: indices,
+        accumulatedMs: 0,
+        lastStartTime: null,
+        // Ensure gridSize/layers are set if modal missed them
+        gridSize: roomData.gridSize || gridSize,
+        totalLayers: roomData.totalLayers || totalLayers
+      });
+      return "initialized";
+    }
 
-  transaction.update(roomRef, updateData);
-  return "joined";
-}
+    // CASE C: Room is already active/idle with people in it
+    const currentAvatars = isNaN(roomData.numOfAvatars) ? 0 : roomData.numOfAvatars;
+    const updateData: any = {
+      numOfAvatars: currentAvatars + 1,
+    };
+
+    if (roomData.status === "active" && roomData.lastStartTime) {
+      const now = Date.now();
+      const lastStart = roomData.lastStartTime.toDate().getTime();
+      const TIMELAPSE_MULTIPLIER = 3;
+      const collectiveMs = (now - lastStart) * TIMELAPSE_MULTIPLIER * Math.max(1, currentAvatars);
+      
+      updateData.accumulatedMs = (roomData.accumulatedMs || 0) + collectiveMs;
+      updateData.lastStartTime = serverTimestamp();
+    }
+
+    transaction.update(roomRef, updateData);
+    return "joined";
   });
 };
+
+// HELPER: Add this if it was lost in the reset
+function generateShuffledIndices(gridSize: number, totalLayers: number) {
+  const BLOCKS_PER_LAYER = gridSize * gridSize;
+  const indices = [];
+  for (let i = 0; i < totalLayers; i++) {
+    const start = i * BLOCKS_PER_LAYER;
+    const layerJobIds = Array.from({ length: BLOCKS_PER_LAYER }, (_, j) => start + j);
+    for (let k = layerJobIds.length - 1; k > 0; k--) {
+      const r = Math.floor(Math.random() * (k + 1));
+      [layerJobIds[k], layerJobIds[r]] = [layerJobIds[r], layerJobIds[k]];
+    }
+    indices.push(...layerJobIds);
+  }
+  return indices;
+}
 
 export const startGlobalRoom = async (paintingId: string) => {
   const roomRef = doc(db, "paintings", paintingId);
