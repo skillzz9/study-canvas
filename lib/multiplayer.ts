@@ -6,6 +6,7 @@ import {
   setDoc,
   deleteDoc,
   updateDoc,
+  increment,
   collection,
   getDoc
 } from "firebase/firestore";
@@ -68,16 +69,12 @@ export const joinOrCreateRoom = async (
 /**
  * Updates the user's cursor position and metadata in the room.
  */
-export const updatePresence = async (
-  uid: string, 
-  roomId: string, 
-  data: { x: number; y: number; username: string; avatar: string }
-) => {
+
+export const updatePresence = async (roomId: string, uid: string, data: any) => {
   const presenceRef = doc(db, `rooms/${roomId}/presence`, uid);
-  
   await setDoc(presenceRef, {
     ...data,
-    lastSeen: serverTimestamp()
+    lastSeen: serverTimestamp(),
   }, { merge: true });
 };
 
@@ -118,4 +115,13 @@ export const leaveRoom = async (uid: string, roomId: string) => {
       isActive: newCount > 0
     });
   });
+};
+
+export const revealSharedBlock = async (paintingId: string, roomId: string) => {
+  const paintingRef = doc(db, "paintings", paintingId);
+  const roomRef = doc(db, "rooms", roomId);
+
+  // Update both the permanent painting and the live session
+  await updateDoc(paintingRef, { revealedBlocks: increment(1) });
+  await updateDoc(roomRef, { revealedBlocks: increment(1) });
 };

@@ -23,11 +23,13 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
     isShared: false,
   });
 
+  // Local helper to generate a preview of the code for the UI
   const [tempCode, setTempCode] = useState<string>("");
 
   const handleFile = (file: File) => {
     if (file && file.type.startsWith("image/")) {
       setPreviewUrl(URL.createObjectURL(file));
+      // Stores filename for manual public folder logic
       setSelectedFileName(`/${file.name}`);
     }
   };
@@ -36,7 +38,7 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
     const newShared = !formData.isShared;
     setFormData({ ...formData, isShared: newShared });
     if (newShared && !tempCode) {
-      // Just a visual preview for the UI
+      // Just a visual preview for the UI state
       setTempCode(Math.random().toString(36).substring(2, 7).toUpperCase());
     }
   };
@@ -47,18 +49,19 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
     setLoading(true);
 
     try {
+      // Calls updated service that initializes allowedUsers with creator UID
       await createPainting(
         user.uid,
         formData.title,
         formData.subject,
         formData.hours,
         selectedFileName || "/test.png",
-        formData.isShared
+        formData.isShared 
       );
 
       onSuccess();
       onClose();
-      // Reset state
+      // Reset local state after successful creation
       setPreviewUrl(null);
       setFormData({ title: "", subject: "", hours: 10, isShared: false });
       setTempCode("");
