@@ -28,8 +28,8 @@ export default function PictureModal({
   date,
   revealedCount,
   totalBlocks,
-  shuffledIndices, // the array of how the drawing should progress
-  targetHours = 10,          
+  shuffledIndices, 
+  targetHours,          
   dateCreated = "APR 14, 2026"   
 }: PictureModalProps) {
   const router = useRouter();
@@ -44,12 +44,6 @@ export default function PictureModal({
   // DISPLAYS PERCENTAGE COMPLETION OF PAINTING BASED ON REVEALBED BLOCKS//
   const percentage = Math.round((revealedCount / totalBlocks) * 100);
   const isFinished = revealedCount >= totalBlocks;
-  
-  // CALCULATES THE COMPLEITION BASED ON TIME // 
-const hoursGoal = targetHours;
-const progressFraction = (totalBlocks - revealedCount) / totalBlocks;
-const hoursLeftRaw = Math.max(0, progressFraction * hoursGoal);
-const hoursCompletedRaw = hoursGoal - hoursLeftRaw; 
 
   // HARD CODED CANVAS SETTINGS //
   const gridSize = 6;
@@ -113,7 +107,7 @@ const hoursCompletedRaw = hoursGoal - hoursLeftRaw;
               <div className="p-8 md:p-12">
                 
                 {/* 1. THE IMAGE (WITH REVEAL MASK & LEVELS) */}
-                <div className="border-4 border-app-border bg-app-bg p-3 mb-10 flex justify-center">
+                <div key={id} className="border-4 border-app-border bg-app-bg p-3 mb-10 flex justify-center">
                   <div className="relative w-full max-w-[500px] aspect-square bg-app-bg border-2 border-app-border/20 overflow-hidden shadow-inner">
                     
                     {/* Empty Canvas Text (Just in case it hasn't loaded yet) */}
@@ -124,7 +118,8 @@ const hoursCompletedRaw = hoursGoal - hoursLeftRaw;
                     </div>
                     
                     {/* BACKGROUND LAYER (The sketch or the last completed layer) */}
-                    <div className="absolute inset-0 z-0">
+                    {/* FIXED: Added bg-[#F5F5F5] and overflow-hidden to match PaintingFrame */}
+                    <div className="absolute inset-0 bg-[#F5F5F5] overflow-hidden">
                       <Level imageSrc={src} level={baseLevel as any} />
                     </div>
 
@@ -184,7 +179,7 @@ const hoursCompletedRaw = hoursGoal - hoursLeftRaw;
                       Canvas Completion
                     </h4>
                     <p className="text-4xl font-black tabular-nums tracking-tight text-app-text mb-1">
-                      {hoursCompletedRaw}h / {hoursGoal}h 
+                      1h / 1h 
                     </p>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-app-text/50">
                       {percentage}% Complete
@@ -192,7 +187,6 @@ const hoursCompletedRaw = hoursGoal - hoursLeftRaw;
                   </div>
 
                   {/* ACTION BLOCK (CONTINUE PAINTING) */}
-                  {/* Notice how the text and background classes are inverted here for that brutalist contrast */}
                   <div className="border-4 border-app-border p-6 bg-app-text text-app-bg flex flex-col justify-center">
                     {isFinished ? (
                       <div className="text-center">

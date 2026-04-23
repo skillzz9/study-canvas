@@ -3,6 +3,8 @@ import React from "react";
 import Window from "@/components/items/Window";
 import CoolGalleryCandle from "@/components/items/Candle";
 import Clock from "@/components/items/Clock";
+import PostItNote from "@/components/items/PostItNote";
+import AffirmationWoodBoard from "@/components/items/AffirmationBoard";
 
 export default function WindowDemoPage() {
   return (
@@ -16,6 +18,9 @@ export default function WindowDemoPage() {
 
       <CoolGalleryCandle theme="dark"></CoolGalleryCandle>
       <Clock theme="dark"></Clock>
+      <PostItNote theme="dark"></PostItNote>
+      <AffirmationWoodBoard></AffirmationWoodBoard>
+      
 
     </main>
   );

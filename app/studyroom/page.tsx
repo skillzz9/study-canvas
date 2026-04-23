@@ -47,8 +47,9 @@ function StudyRoomContent() {
   const [gridSize, setGridSize] = useState(6); 
   const [totalLayers, setTotalLayers] = useState(5); 
 
-  // NEW: Session baseline to handle the timer reset
+  // NEW: Session baselines
   const [sessionBaseMs, setSessionBaseMs] = useState(0);
+  const [sessionBaseBlocks, setSessionBaseBlocks] = useState(0);
 
   const blocksPerLayer = gridSize * gridSize;
   const totalSessionBlocks = blocksPerLayer * totalLayers;
@@ -141,8 +142,9 @@ function StudyRoomContent() {
         setBankedMs(currentBankedMs); 
         setSecondsElapsed(currentBankedMs / 1000);
 
-        // SYNC SESSION BASELINE
+        // SYNC SESSION BASELINES
         setSessionBaseMs(data.sessionBaseMs || 0);
+        setSessionBaseBlocks(data.sessionBaseBlocks !== undefined ? data.sessionBaseBlocks : (data.revealedBlocks || 0));
         
         if (data.status) setRoomStatus(data.status); 
         
@@ -185,6 +187,9 @@ function StudyRoomContent() {
   const handleBlockComplete = async () => {
     if (!paintingId) return;
     const paintingRef = doc(db, "paintings", paintingId);
+    
+    // We only update the blocks. We DO NOT overwrite the time, 
+    // keeping the session running smoothly.
     await updateDoc(paintingRef, {
       revealedBlocks: revealedCount + 1
     });
@@ -214,15 +219,21 @@ function StudyRoomContent() {
   const totalPaintingSeconds = targetHours * 3600; 
   const secondsPerBlock = totalPaintingSeconds / totalSessionBlocks;
 
+  // Calculate elapsed seconds just for this session (for the stopwatch)
+  const sessionSeconds = roomStatus === "idle" 
+    ? 0 
+    : Math.max(0, secondsElapsed - (sessionBaseMs / 1000));
+
+  const percentage = Math.floor((revealedCount / totalSessionBlocks) * 100);
+
+  // Determine the baseline number of blocks to build on
+  const baseBlocksForSession = roomStatus === "idle" ? revealedCount : sessionBaseBlocks;
+
+  // The Avatar calculates its target based ONLY on the "Starting Line" plus session progress
   const targetBlocksCount = Math.min(
-    Math.floor(secondsElapsed / secondsPerBlock),
+    baseBlocksForSession + Math.floor(sessionSeconds / secondsPerBlock),
     totalSessionBlocks
   );
-
-  // NEW: Calculate elapsed seconds just for this session
-  const sessionSeconds = roomStatus === "idle" 
-  ? 0 
-  : Math.max(0, secondsElapsed - (sessionBaseMs / 1000));
   
   const handleStartSession = async () => {
     if (!paintingId) return;
@@ -233,7 +244,9 @@ function StudyRoomContent() {
         lastStartTime: serverTimestamp(),
         sessionStartedAt: serverTimestamp(),
         // LOCK IN CURRENT PROGRESS AS THE TIMER STARTING POINT
-        sessionBaseMs: bankedMs 
+        sessionBaseMs: bankedMs,
+        // LOCK IN CURRENT BLOCKS AS THE AVATAR STARTING LINE
+        sessionBaseBlocks: revealedCount 
       });
     } catch (error) {
       console.error("Error starting session:", error);
@@ -269,21 +282,40 @@ function StudyRoomContent() {
       </div>
 
       <div className="relative flex flex-col items-center pb-40">
-        <div className="w-[400px] h-[400px] relative shadow-2xl bg-white rounded-2xl border-4 border-neutral-800 overflow-hidden">
-          <div className="absolute inset-0 z-0">
-            <Level imageSrc={studyImage} level={baseLevel} />
-          </div>
-          <div className="absolute inset-0 z-10">
-            <GridRevealMask 
-                revealedCount={revealedCount} 
-                fullShuffledIndices={dbShuffledIndices}
-                gridSize={gridSize}
-                currentLayerIndex={currentLayerIndex}
-                >
-                <Level imageSrc={studyImage} level={topLevel} />
-            </GridRevealMask>
-          </div>
-        </div>
+<div className="w-[400px] h-[400px] relative shadow-2xl bg-white rounded-2xl border-4 border-neutral-800 overflow-hidden">
+  
+  {/* NEW: PERCENTAGE OVERLAY (Top Right) */}
+{/* <div className="absolute top-4 right-4 z-30 flex items-center justify-center px-3 py-1 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] pointer-events-none">
+  <span className="text-[14px] font-black uppercase tracking-widest text-app-text tabular-nums">
+    {percentage}%
+  </span>
+</div> */}
+
+  {/* BASE LEVEL */}
+  <div className="absolute inset-0 z-0 bg-[#F5F5F5]">
+    <Level 
+      key={`base-${baseLevel}`}
+      imageSrc={studyImage} 
+      level={baseLevel} 
+    />
+  </div>
+
+  {/* TOP LEVEL (MASKED) */}
+  <div className="absolute inset-0 z-10">
+    <GridRevealMask 
+        revealedCount={revealedCount} 
+        fullShuffledIndices={dbShuffledIndices}
+        gridSize={gridSize}
+        currentLayerIndex={currentLayerIndex}
+    >
+        <Level 
+          key={`top-${topLevel}`}
+          imageSrc={studyImage} 
+          level={topLevel} 
+        />
+    </GridRevealMask>
+  </div>
+</div>
 
         <Stopwatch 
           secondsElapsed={sessionSeconds}
