@@ -12,6 +12,7 @@ import AffirmationWoodBoard from "@/components/items/AffirmationBoard";
 import RetroTV from "@/components/items/RetroTV"; 
 import SimpleShelf from "@/components/items/SimpleShelf";
 import TodoList from "./items/TodoList";
+import JoinPaintingModal from "./JoinPaintingModal";
 
 interface SideMenuProps {
   isOpen: boolean;
@@ -62,6 +63,7 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
   const [isDynamicItemsOpen, setIsDynamicItemsOpen] = useState(false); 
   const [isStationeryOpen, setIsStationeryOpen] = useState(false); 
   const [isStudioGearOpen, setIsStudioGearOpen] = useState(false); 
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   
   const { theme } = useTheme();
   const currentTheme = (theme === "light" ? "light" : "dark");
@@ -183,105 +185,119 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ x: "-100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "-100%" }}
-          transition={{ type: "spring", damping: 25, stiffness: 200 }}
-          className="fixed top-0 left-0 h-full w-80 z-[70] pointer-events-none flex flex-col"
-        >
-          <div className="h-full w-full bg-app-card border-r-4 border-app-border p-6 shadow-[10px_0px_0px_0px_rgba(0,0,0,0.3)] pointer-events-auto flex flex-col overflow-y-auto overflow-x-hidden custom-scrollbar">
-            <div className="mb-8" />
-            <nav className="flex flex-col gap-4">
-              
-              <div className="flex flex-col gap-2">
-                <button onClick={() => setIsColorOpen(!isColorOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
-                  <span className="flex items-center gap-4">🎨 Wall color</span>
-                  <span className={`transition-transform duration-300 ${isColorOpen ? 'rotate-180' : ''}`}>▼</span>
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed top-0 left-0 h-full w-80 z-[70] pointer-events-none flex flex-col"
+          >
+            <div className="h-full w-full bg-app-card border-r-4 border-app-border p-6 shadow-[10px_0px_0px_0px_rgba(0,0,0,0.3)] pointer-events-auto flex flex-col overflow-y-auto overflow-x-hidden custom-scrollbar">
+              <div className="mb-8" />
+              <nav className="flex flex-col gap-4">
+                
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => setIsColorOpen(!isColorOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+                    <span className="flex items-center gap-4">🎨 Wall color</span>
+                    <span className={`transition-transform duration-300 ${isColorOpen ? 'rotate-180' : ''}`}>▼</span>
+                  </button>
+                  <AnimatePresence>
+                    {isColorOpen && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-2 pl-4">
+                        {wallPresets.map((preset) => (
+                          <button key={preset.name} onClick={() => onColorSelect(preset.value)} className="flex items-center gap-3 p-2 hover:bg-app-accent/10 rounded-lg transition-colors group">
+                            <div className="w-6 h-6 rounded-full border-2 border-app-border shadow-sm" style={{ backgroundColor: preset.hex }} />
+                            <span className="text-[11px] font-bold uppercase text-app-text group-hover:text-app-accent">{preset.name}</span>
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <button onClick={onCreateClick} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
+                  🖼️ Create new painting
                 </button>
-                <AnimatePresence>
-                  {isColorOpen && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-2 pl-4">
-                      {wallPresets.map((preset) => (
-                        <button key={preset.name} onClick={() => onColorSelect(preset.value)} className="flex items-center gap-3 p-2 hover:bg-app-accent/10 rounded-lg transition-colors group">
-                          <div className="w-6 h-6 rounded-full border-2 border-app-border shadow-sm" style={{ backgroundColor: preset.hex }} />
-                          <span className="text-[11px] font-bold uppercase text-app-text group-hover:text-app-accent">{preset.name}</span>
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
 
-              <button onClick={onCreateClick} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
-                🖼️ Create new painting
-              </button>
-
-              <div className="flex flex-col gap-2">
-                <button onClick={() => setIsStationeryOpen(!isStationeryOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
-                  <span className="flex items-center gap-4">📝 Stationery</span>
-                  <span className={`transition-transform duration-300 ${isStationeryOpen ? 'rotate-180' : ''}`}>▼</span>
+                <button 
+                  onClick={() => setIsJoinModalOpen(true)} 
+                  className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left"
+                >
+                  👥 Join shared painting
                 </button>
-                <AnimatePresence>
-                  {isStationeryOpen && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-3 pt-2">
-                      {stationeryItems.map((item) => <ItemCard key={item.name} item={item} />)}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
 
-              <div className="flex flex-col gap-2">
-                <button onClick={() => setIsStudioGearOpen(!isStudioGearOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
-                  <span className="flex items-center gap-4">📺 Studio Gear</span>
-                  <span className={`transition-transform duration-300 ${isStudioGearOpen ? 'rotate-180' : ''}`}>▼</span>
-                </button>
-                <AnimatePresence>
-                  {isStudioGearOpen && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-3 pt-2">
-                      {studioGear.map((item) => <ItemCard key={item.name} item={item} />)}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => setIsStationeryOpen(!isStationeryOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
+                    <span className="flex items-center gap-4">📝 Stationery</span>
+                    <span className={`transition-transform duration-300 ${isStationeryOpen ? 'rotate-180' : ''}`}>▼</span>
+                  </button>
+                  <AnimatePresence>
+                    {isStationeryOpen && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-3 pt-2">
+                        {stationeryItems.map((item) => <ItemCard key={item.name} item={item} />)}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
 
-              <div className="flex flex-col gap-2">
-                <button onClick={() => setIsStaticItemsOpen(!isStaticItemsOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
-                  <span className="flex items-center gap-4">📦 Static items</span>
-                  <span className={`transition-transform duration-300 ${isStaticItemsOpen ? 'rotate-180' : ''}`}>▼</span>
-                </button>
-                <AnimatePresence>
-                  {isStaticItemsOpen && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-3 pt-2">
-                      {staticItems.map((item) => <ItemCard key={item.name} item={item} forcedTheme={item.forceTheme} />)}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => setIsStudioGearOpen(!isStudioGearOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
+                    <span className="flex items-center gap-4">📺 Studio Gear</span>
+                    <span className={`transition-transform duration-300 ${isStudioGearOpen ? 'rotate-180' : ''}`}>▼</span>
+                  </button>
+                  <AnimatePresence>
+                    {isStudioGearOpen && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-3 pt-2">
+                        {studioGear.map((item) => <ItemCard key={item.name} item={item} />)}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
 
-              <div className="flex flex-col gap-2">
-                <button onClick={() => setIsDynamicItemsOpen(!isDynamicItemsOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
-                  <span className="flex items-center gap-4">⚡ Dynamic items</span>
-                  <span className={`transition-transform duration-300 ${isDynamicItemsOpen ? 'rotate-180' : ''}`}>▼</span>
-                </button>
-                <AnimatePresence>
-                  {isDynamicItemsOpen && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-3 pt-2">
-                      {dynamicItems.map((item) => <ItemCard key={item.name} item={item} forcedTheme={item.forceTheme} />)}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </nav>
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => setIsStaticItemsOpen(!isStaticItemsOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
+                    <span className="flex items-center gap-4">📦 Static items</span>
+                    <span className={`transition-transform duration-300 ${isStaticItemsOpen ? 'rotate-180' : ''}`}>▼</span>
+                  </button>
+                  <AnimatePresence>
+                    {isStaticItemsOpen && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-3 pt-2">
+                        {staticItems.map((item) => <ItemCard key={item.name} item={item} forcedTheme={item.forceTheme} />)}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
 
-            <div className="mt-auto pt-8">
-              <p className="text-[10px] text-app-accent uppercase tracking-widest font-bold opacity-60">Edit Mode Active</p>
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => setIsDynamicItemsOpen(!isDynamicItemsOpen)} className="w-full p-4 bg-app-bg border-4 border-app-border text-app-text font-bold uppercase text-[12px] flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-left">
+                    <span className="flex items-center gap-4">⚡ Dynamic items</span>
+                    <span className={`transition-transform duration-300 ${isDynamicItemsOpen ? 'rotate-180' : ''}`}>▼</span>
+                  </button>
+                  <AnimatePresence>
+                    {isDynamicItemsOpen && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-3 pt-2">
+                        {dynamicItems.map((item) => <ItemCard key={item.name} item={item} forcedTheme={item.forceTheme} />)}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </nav>
+
+              <div className="mt-auto pt-8">
+                <p className="text-[10px] text-app-accent uppercase tracking-widest font-bold opacity-60">Edit Mode Active</p>
+              </div>
             </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <JoinPaintingModal 
+        isOpen={isJoinModalOpen} 
+        onClose={() => setIsJoinModalOpen(false)} 
+      />
+    </>
   );
 }

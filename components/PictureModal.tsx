@@ -17,6 +17,7 @@ interface PictureModalProps {
   shuffledIndices: number[];
   targetHours?: number;  
   dateCreated?: string;  
+  shareCode?: string | null;
 }
 
 export default function PictureModal({ 
@@ -30,53 +31,49 @@ export default function PictureModal({
   totalBlocks,
   shuffledIndices, 
   targetHours,          
-  dateCreated = "APR 14, 2026"   
+  dateCreated = "APR 14, 2026",
+  shareCode
 }: PictureModalProps) {
   const router = useRouter();
 
-  // SETTING TITLE OF THE PAINTING //
   const [localTitle, setLocalTitle] = useState(title);
   const [isEditing, setIsEditing] = useState(false);
-
-  // SESSION GOAL FOR TIMER //
   const [sessionGoal, setSessionGoal] = useState<number>(60);
+  const [copied, setCopied] = useState(false);
 
-  // DISPLAYS PERCENTAGE COMPLETION OF PAINTING BASED ON REVEALBED BLOCKS//
   const percentage = Math.round((revealedCount / totalBlocks) * 100);
   const isFinished = revealedCount >= totalBlocks;
 
-  // HARD CODED CANVAS SETTINGS //
   const gridSize = 6;
   const blocksPerLayer = gridSize * gridSize;
   const totalLayers = Math.floor(totalBlocks / blocksPerLayer); 
   
-  // WHERE ARE WE AT INSIDE SHUFFLED INDICIES
   const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
-
-  // FIGURES OUT WHICH LAYERS TO DISPLAY
   const baseLevel = isFinished ? 6 : (currentLayerIndex + 1);
   const topLevel = currentLayerIndex + 2;
 
   useEffect(() => {
     setLocalTitle(title);
     setIsEditing(false);
+    setCopied(false);
   }, [title, isOpen]);
 
   const handleContinuePainting = () => {
-    // Route to study room passing the painting ID and their session goal
     router.push(`/studyroom?paintingId=${id}&goal=${sessionGoal}`);
+  };
+
+  const handleCopyCode = () => {
+    if (!shareCode) return;
+    navigator.clipboard.writeText(shareCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <>
       <style>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
       <AnimatePresence>
@@ -106,24 +103,15 @@ export default function PictureModal({
 
               <div className="p-8 md:p-12">
                 
-                {/* 1. THE IMAGE (WITH REVEAL MASK & LEVELS) */}
+                {/* 1. THE IMAGE PREVIEW */}
                 <div key={id} className="border-4 border-app-border bg-app-bg p-3 mb-10 flex justify-center">
-                  <div className="relative w-full max-w-[500px] aspect-square bg-app-bg border-2 border-app-border/20 overflow-hidden shadow-inner">
-                    
-                    {/* Empty Canvas Text (Just in case it hasn't loaded yet) */}
+                  <div className="relative w-full max-w-[400px] aspect-square bg-app-bg border-2 border-app-border/20 overflow-hidden shadow-inner">
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-black uppercase text-app-text/30 tracking-widest">
-                        Empty Canvas
-                      </span>
+                      <span className="text-sm font-black uppercase text-app-text/30 tracking-widest">Empty Canvas</span>
                     </div>
-                    
-                    {/* BACKGROUND LAYER (The sketch or the last completed layer) */}
-                    {/* FIXED: Added bg-[#F5F5F5] and overflow-hidden to match PaintingFrame */}
                     <div className="absolute inset-0 bg-[#F5F5F5] overflow-hidden">
                       <Level imageSrc={src} level={baseLevel as any} />
                     </div>
-
-                    {/* ACTIVE PAINTING LAYER (What the mask is currently revealing) */}
                     {!isFinished && (
                       <div className="absolute inset-0 z-10">
                         <GridRevealMask 
@@ -138,7 +126,6 @@ export default function PictureModal({
                         </GridRevealMask>
                       </div>
                     )}
-
                   </div>
                 </div>
 
@@ -151,16 +138,13 @@ export default function PictureModal({
                       value={localTitle}
                       onChange={(e) => setLocalTitle(e.target.value)}
                       onBlur={() => setIsEditing(false)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") setIsEditing(false);
-                      }}
+                      onKeyDown={(e) => e.key === "Enter" && setIsEditing(false)}
                       className="text-5xl font-black uppercase tracking-tighter text-app-text leading-none mb-2 w-full bg-transparent border-b-2 border-app-border/50 outline-none focus:border-app-border"
                     />
                   ) : (
                     <h2 
                       onClick={() => setIsEditing(true)}
                       className="text-5xl font-black uppercase tracking-tighter text-app-text leading-none mb-2 cursor-text hover:opacity-70 transition-opacity"
-                      title="Click to edit title"
                     >
                       {localTitle}
                     </h2>
@@ -172,21 +156,12 @@ export default function PictureModal({
 
                 {/* 3. META INFO GRID */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  
-                  {/* PROGRESS BLOCK */}
                   <div className="border-4 border-app-border p-6 bg-app-bg flex flex-col justify-center">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-app-text/60 mb-3">
-                      Canvas Completion
-                    </h4>
-                    <p className="text-4xl font-black tabular-nums tracking-tight text-app-text mb-1">
-                      1h / 1h 
-                    </p>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-app-text/50">
-                      {percentage}% Complete
-                    </p>
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-app-text/60 mb-3">Canvas Completion</h4>
+                    <p className="text-4xl font-black tabular-nums tracking-tight text-app-text mb-1">{percentage}%</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-app-text/50">Progress: {revealedCount} / {totalBlocks} Blocks</p>
                   </div>
 
-                  {/* ACTION BLOCK (CONTINUE PAINTING) */}
                   <div className="border-4 border-app-border p-6 bg-app-text text-app-bg flex flex-col justify-center">
                     {isFinished ? (
                       <div className="text-center">
@@ -194,13 +169,10 @@ export default function PictureModal({
                       </div>
                     ) : (
                       <>
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-app-bg/70 mb-3">
-                          Next Session Goal (Mins)
-                        </h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-app-bg/70 mb-3">Next Session Goal (Mins)</h4>
                         <div className="flex gap-4">
                           <input 
                             type="number" 
-                            min="1"
                             value={sessionGoal}
                             onChange={(e) => setSessionGoal(Number(e.target.value))}
                             className="bg-transparent border-b-4 border-app-bg/50 text-3xl font-black tabular-nums w-24 outline-none text-app-bg pb-1 focus:border-app-bg transition-colors"
@@ -216,6 +188,33 @@ export default function PictureModal({
                     )}
                   </div>
                 </div>
+
+                {/* 4. MULTIPLAYER SYNC SECTION */}
+                {shareCode && (
+                  <div className="mt-10 border-4 border-app-border border-dashed p-6 bg-app-card flex flex-col md:flex-row items-center justify-between gap-6 transition-all">
+                    <div className="flex flex-col text-center md:text-left">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-app-accent mb-1">Canvas Sync ID</h4>
+                      <p className="text-[10px] font-bold uppercase text-app-text/40 tracking-widest">Share this code with your study squad</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <div 
+                        onClick={handleCopyCode}
+                        className="bg-app-bg border-4 border-app-border px-8 py-3 rounded-2xl cursor-pointer hover:border-app-accent transition-all group relative active:scale-95"
+                      >
+                        <span className="text-3xl font-mono font-black tracking-[0.4em] text-app-text pl-[0.4em]">
+                          {shareCode}
+                        </span>
+                      </div>
+                      <button 
+                        onClick={handleCopyCode}
+                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${copied ? 'text-green-500' : 'text-app-text/40 hover:text-app-accent'}`}
+                      >
+                        {copied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
               </div>
             </motion.div>
