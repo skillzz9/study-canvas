@@ -1,9 +1,9 @@
 "use client";
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import DustCloud from "./DustCloud";
 
 interface AvatarProps {
+  isMe: boolean; // NEW: Only the owner of this avatar updates the DB
   myIndex: number;
   totalWorkers: number;
   revealedCount: number;
@@ -14,11 +14,12 @@ interface AvatarProps {
   userName: string;
   avatarSrc: string;
   lastSeen: any;
-  roomStatus: string;         // "active" or "idle"
-  globalStartTime: number | null; // ms timestamp from DB
+  roomStatus: string;
+  globalStartTime: number | null;
 }
 
 export default function Avatar({ 
+  isMe,
   myIndex,
   totalWorkers,
   revealedCount,
@@ -36,53 +37,47 @@ export default function Avatar({
   const [isBusy, setIsBusy] = useState(false);
   const [isPainting, setIsPainting] = useState(false);
   const [stopwatch, setStopwatch] = useState("00:00:00");
-  
-  // State for the zoom-in entry effect
   const [isMounted, setIsMounted] = useState(false);
 
   const homeX = 200 + (myIndex * 45); 
   const homeY = 580;
   const [state, setState] = useState({ x: homeX, y: homeY, facingLeft: false });
 
-  // Trigger zoom effect on mount
-  useEffect(() => {
-    // We wait 100ms to ensure the browser paints the 'scale(0)' state first.
-    // This "kickstarts" the CSS transition.
-    const timer = setTimeout(() => {
-      setIsMounted(true);
-    }, 100);
+  // 1. RELAY LOGIC: Find the next block assigned to THIS avatar
+  const myNextTaskIndex = useMemo(() => {
+    let k = revealedCount;
+    while (k < shuffledIndices.length) {
+      if (k % Math.max(1, totalWorkers) === myIndex) return k;
+      k++;
+    }
+    return -1;
+  }, [revealedCount, totalWorkers, myIndex, shuffledIndices]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
-  // 1. CONDITIONAL STOPWATCH LOGIC
   useEffect(() => {
     if (roomStatus !== "active" || !globalStartTime || !lastSeen) {
       setStopwatch("00:00:00");
       return;
     }
-
     const userJoinTime = lastSeen.toDate ? lastSeen.toDate().getTime() : lastSeen;
-
     const tick = () => {
       const now = Date.now();
       const effectiveStart = Math.max(userJoinTime, globalStartTime);
       const diff = Math.max(0, now - effectiveStart);
-
       const h = Math.floor(diff / 3600000).toString().padStart(2, "0");
       const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, "0");
       const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, "0");
-
       setStopwatch(`${h}:${m}:${s}`);
     };
-
     tick();
-    // 100ms for high-frequency syncing
     const interval = setInterval(tick, 100); 
     return () => clearInterval(interval);
   }, [lastSeen, roomStatus, globalStartTime]);
 
-  // 2. MOVEMENT LOGIC
   const moveAvatar = (newX: number, newY: number) => {
     setState(current => ({
       x: newX,
@@ -99,62 +94,51 @@ export default function Avatar({
     return { x: col * blockSize + blockSize / 2, y: row * blockSize + blockSize / 2 };
   };
 
-  // 3. IDLE WALKING
   useEffect(() => {
     if (isBusy) return;
-
     const idleInterval = setInterval(() => {
       const targetX = Math.random() * 300;
       moveAvatar(targetX, homeY);
-    }, 1333); // CHANGED: 4000ms -> 1333ms
-
+    }, 1333); 
     return () => clearInterval(idleInterval);
   }, [isBusy, homeY]);
 
-  // 4. ARTIST LOOP
+  // 2. STAGGERED ARTIST LOOP
   useEffect(() => {
-    const isJobAvailable = targetBlocksCount > revealedCount;
-    const isMyTurn = revealedCount % Math.max(1, totalWorkers) === myIndex;
+    const isBlockDue = targetBlocksCount > myNextTaskIndex && myNextTaskIndex !== -1;
+    const isStrictlyMyTurn = revealedCount === myNextTaskIndex;
 
-    if (isJobAvailable && isMyTurn && !isBusy && shuffledIndices.length > 0) {
+    if (isBlockDue && isStrictlyMyTurn && !isBusy && shuffledIndices.length > 0) {
       const runArtistLoop = async () => {
         setIsBusy(true);
-        const nextGlobalIndex = shuffledIndices[revealedCount];
-        if (nextGlobalIndex === undefined) { setIsBusy(false); return; }
+        const blockIdToReveal = shuffledIndices[myNextTaskIndex];
+        if (blockIdToReveal === undefined) { setIsBusy(false); return; }
         
-        const target = getCoords(nextGlobalIndex);
+        const target = getCoords(blockIdToReveal);
         
-        // 1. Walk to the block
         moveAvatar(target.x, target.y);
-        await new Promise(r => setTimeout(r, 666)); // CHANGED: 2000ms -> 666ms
+        await new Promise(r => setTimeout(r, 666)); 
+        await new Promise(r => setTimeout(r, 166)); 
         
-        // 2. Short pause before starting
-        await new Promise(r => setTimeout(r, 166)); // CHANGED: 500ms -> 166ms
-        
-        // 3. START PAINTING (Clouds appear)
         setIsPainting(true);
+        await new Promise(r => setTimeout(r, 333)); 
         
-        // 4. Wait (halfway through the cloud animation)
-        await new Promise(r => setTimeout(r, 333)); // CHANGED: 1000ms -> 333ms
+        // ONLY the user who owns this avatar triggers the block reveal in the DB
+        if (isMe) {
+          await onBlockComplete?.();
+        }
         
-        // 5. REVEAL THE BLOCK (Happens behind the clouds)
-        onBlockComplete?.();
-        
-        // 6. Wait so the clouds stay visible a bit longer
-        await new Promise(r => setTimeout(r, 333)); // CHANGED: 1000ms -> 333ms
-        
-        // 7. STOP PAINTING (Clouds fade out to reveal the block)
+        await new Promise(r => setTimeout(r, 333)); 
         setIsPainting(false);
+        await new Promise(r => setTimeout(r, 166)); 
         
-        // 8. Return home
-        await new Promise(r => setTimeout(r, 166)); // CHANGED: 500ms -> 166ms
         moveAvatar(homeX, homeY);
-        await new Promise(r => setTimeout(r, 666)); // CHANGED: 2000ms -> 666ms
+        await new Promise(r => setTimeout(r, 666)); 
         setIsBusy(false);
       };
       runArtistLoop();
     }
-  }, [targetBlocksCount, revealedCount, isBusy, myIndex, totalWorkers, shuffledIndices]);
+  }, [targetBlocksCount, revealedCount, isBusy, myNextTaskIndex, shuffledIndices, onBlockComplete, homeX, homeY, isMe]);
 
   return (
     <div 
@@ -162,7 +146,6 @@ export default function Avatar({
       style={{ 
         transform: `translate3d(${state.x}px, ${state.y}px, 0) translate(-50%, -50%) scale(${isMounted ? 1 : 0})`,
         opacity: isMounted ? 1 : 0,
-        // CHANGED: 2000ms -> 666ms for physical movement speed
         transition: "transform 666ms ease-in-out, opacity 666ms ease-in-out",
         willChange: "transform, opacity"
       }}
@@ -171,6 +154,11 @@ export default function Avatar({
         <h1 className="text-[12px] font-bold text-neutral-800 uppercase tracking-tighter whitespace-nowrap px-1 rounded bg-white/80 border border-neutral-200 shadow-sm">
           {userName}
         </h1>
+        {roomStatus === "active" && (
+           <div className="bg-app-accent text-white text-[8px] px-1 font-black rounded shadow-sm">
+             {stopwatch}
+           </div>
+        )}
       </div>
 
       <div className="relative" style={{ transform: `scaleX(${state.facingLeft ? -1 : 1})` }}>
@@ -185,8 +173,6 @@ export default function Avatar({
         />
         <img 
           src={avatarSrc} 
-          // Note: Because CSS animations like animate-bounce dictate their own speed in tailwind configs, 
-          // the bounce might look a bit slow compared to the movement. 
           className={`w-17 h-17 object-contain ${isBusy && state.y < 450 ? "animate-bounce" : ""}`} 
         />
       </div>

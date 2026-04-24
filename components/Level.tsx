@@ -108,39 +108,41 @@ export default function Level({ imageSrc, level }: LevelProps) {
     case 6:
       return (
         <div className="relative w-full h-full bg-white">
-          {/* 1. BOTTOM LAYER: Tight Watercolor Wash */}
+          {/* 1. BOTTOM LAYER: The vibrant, legible color base */}
           <Image
             src={imageSrc}
             alt="L6-Color-Base"
             fill
             unoptimized
-            className="absolute inset-0 object-cover blur-[8px] saturate-[1.5] opacity-10 brightness-[1.05] z-0"
+            className="absolute inset-0 object-cover saturate-[1.2] brightness-[1.05] z-0"
           />
 
-          {/* 2. MIDDLE LAYER: Photo-accurate Details */}
+          {/* 2. MIDDLE LAYER: The "painted" soft glow effect */}
           <Image
             src={imageSrc}
             alt="L6-Color-Details"
             fill
             unoptimized
-            className="absolute inset-0 object-cover blur-[2px] saturate-[1.2] opacity-60 mix-blend-multiply z-10"
+            className="absolute inset-0 object-cover blur-[3px] saturate-[1.5] opacity-40 mix-blend-hard-light z-10"
           />
 
-          {/* 3. TOP LAYER: Your Custom Sketch */}
-          <div className="absolute inset-0 z-20 mix-blend-multiply">
+          {/* 3. TOP LAYER: Sketch texture and highlights */}
+          <div className="absolute inset-0 z-20">
+            {/* The Sketch Lines: mix-blend-multiply presses the dark pencil lines into the colors below without hiding them */}
             <Image
               src={imageSrc}
               alt="L6-Sketch-Base"
               fill
               unoptimized
-              className="object-cover grayscale contrast-[800%] brightness-[120%]"
+              className="object-cover grayscale contrast-[250%] mix-blend-multiply opacity-40"
             />
+            {/* Painted Highlights: Gives the brushstrokes a slight 3D pop */}
             <Image
               src={imageSrc}
               alt="L6-Sketch-Shade"
               fill
               unoptimized
-              className="absolute inset-0 object-cover grayscale invert blur-[2.5px] mix-blend-color-dodge opacity-40"
+              className="absolute inset-0 object-cover grayscale invert blur-[2px] mix-blend-color-dodge opacity-30"
             />
           </div>
         </div>

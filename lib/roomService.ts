@@ -63,9 +63,13 @@ export const joinOrCreateGlobalRoom = async (
     // CASE C: STANDARD JOIN
     else {
       const currentAvatars = isNaN(roomData.numOfAvatars) ? 0 : roomData.numOfAvatars;
+      const currentAllowedUsers = roomData.allowedUsers || [];
+      const newAllowedUsers = Array.from(new Set([...currentAllowedUsers, uid]));
+
       transaction.update(roomRef, {
         numOfAvatars: currentAvatars + 1,
-        totalMinutes: totalMinutes || roomData.totalMinutes || 60
+        totalMinutes: totalMinutes || roomData.totalMinutes || 60,
+        allowedUsers: newAllowedUsers
       });
       return "joined";
     }
