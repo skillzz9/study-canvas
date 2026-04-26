@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import confetti from 'canvas-confetti';
 import { useRouter, useSearchParams } from "next/navigation";
-// ADDED 'increment' to imports
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Level from "@/components/Level";
@@ -14,28 +13,41 @@ import { useAuth } from "@/context/AuthContext";
 import { getUserDocument } from "@/lib/userService";
 import { UserProfile } from "@/types";
 import { updatePresence, leaveGlobalRoom, joinOrCreateGlobalRoom } from "@/lib/roomService";
-import { useTheme } from "next-themes"; 
 
 function StudyRoomContent() {
-  const { theme, setTheme } = useTheme(); 
   const router = useRouter();
+  // USING SEARCH PARAMETERS FOR STUDY ROOM (NOT GOOD)
   const searchParams = useSearchParams();
+  // FOR GATHERING USER DATA FROM AUTH
   const { user, loading: authLoading } = useAuth();
-  const hasInitialized = useRef(false); 
   
+  // Uses search params to get data (need to change this to get from database instead)
   const paintingId = searchParams.get("paintingId");
   const goalMinutes = searchParams.get("goal");
 
+  // GATHERING USER DATA FROM FIRESTORE
   const [userData, setUserData] = useState<UserProfile | null>(null);
+
+  // THE LIST OF JOBS (or blocks to draw)
   const [dbShuffledIndices, setDbShuffledIndices] = useState<number[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  // STUDY IMAGE ITSELF (THE PATH TO THE STUDY IMAGE)
   const [studyImage, setStudyImage] = useState<string | null>(null);
+
+
+  // how many minutes for the current session
   const [totalMinutes, setTotalMinutes] = useState<number>(Number(goalMinutes) || 60); 
+  // how many hours are needed for the painting to be done
   const [targetHours, setTargetHours] = useState<number>(10);
+  // how many seconds have elapsed in the current session for the UI of the stopwatch 
   const [secondsElapsed, setSecondsElapsed] = useState(0);
-  const [revealedCount, setRevealedCount] = useState(0);
-  const [collaborators, setCollaborators] = useState<any[]>([]);
+  // helps with if someone leaves the room  
   const [bankedMs, setBankedMs] = useState(0);
+
+  // how many blocks have been revealed so far
+  const [revealedCount, setRevealedCount] = useState(0);
+  // how many avatars there are in the session
+  const [collaborators, setCollaborators] = useState<any[]>([]);
+
   const [globalStartTime, setGlobalStartTime] = useState<number | null>(null);
   const [stableSessionStart, setStableSessionStart] = useState<number | null>(null);
   const [roomStatus, setRoomStatus] = useState("idle"); 
@@ -43,6 +55,10 @@ function StudyRoomContent() {
   const [totalLayers, setTotalLayers] = useState(5); 
   const [sessionBaseMs, setSessionBaseMs] = useState(0);
   const [sessionBaseBlocks, setSessionBaseBlocks] = useState(0);
+
+  // other boring variables that are self explanitory
+  const [dataLoading, setDataLoading] = useState(true);
+  const hasInitialized = useRef(false); 
 
   const blocksPerLayer = gridSize * gridSize;
   const totalSessionBlocks = blocksPerLayer * totalLayers;
