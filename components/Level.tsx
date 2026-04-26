@@ -107,43 +107,55 @@ export default function Level({ imageSrc, level }: LevelProps) {
 
     case 6:
       return (
-        <div className="relative w-full h-full bg-white">
-          {/* 1. BOTTOM LAYER: Tight Watercolor Wash */}
-          <Image
-            src={imageSrc}
-            alt="L6-Color-Base"
-            fill
-            unoptimized
-            className="absolute inset-0 object-cover blur-[8px] saturate-[1.5] opacity-10 brightness-[1.05] z-0"
-          />
+<div className="relative w-full h-full bg-white overflow-hidden">
+  {/* 1. BASE LAYER: Vibrant Watercolor Wash */}
+  <Image
+    src={imageSrc}
+    alt="L6-Color-Base"
+    fill
+    unoptimized
+    className="absolute inset-0 object-cover blur-[6px] saturate-[3] opacity-50 brightness-[1.2] z-0"
+  />
 
-          {/* 2. MIDDLE LAYER: Photo-accurate Details */}
-          <Image
-            src={imageSrc}
-            alt="L6-Color-Details"
-            fill
-            unoptimized
-            className="absolute inset-0 object-cover blur-[2px] saturate-[1.2] opacity-60 mix-blend-multiply z-10"
-          />
+  {/* 2. HIGHLIGHT PASS: Makes the whites more visible and "glowy" */}
+  <Image
+    src={imageSrc}
+    alt="L6-Whites-Pop"
+    fill
+    unoptimized
+    className="absolute inset-0 object-cover mix-blend-screen opacity-40 brightness-[1.3] contrast-[120%] z-10"
+  />
 
-          {/* 3. TOP LAYER: Your Custom Sketch */}
-          <div className="absolute inset-0 z-20 mix-blend-multiply">
-            <Image
-              src={imageSrc}
-              alt="L6-Sketch-Base"
-              fill
-              unoptimized
-              className="object-cover grayscale contrast-[800%] brightness-[120%]"
-            />
-            <Image
-              src={imageSrc}
-              alt="L6-Sketch-Shade"
-              fill
-              unoptimized
-              className="absolute inset-0 object-cover grayscale invert blur-[2.5px] mix-blend-color-dodge opacity-40"
-            />
-          </div>
-        </div>
+  <Image
+    src={imageSrc}
+    alt="L6-Color-Details"
+    fill
+    unoptimized
+    className="absolute inset-0 object-cover saturate-[1.8] opacity-60 mix-blend-overlay z-20"
+  />
+
+  {/* 4. TOP LAYER: Softened Hand-Drawn Sketch */}
+  <div className="absolute inset-0 z-30 mix-blend-multiply opacity-40">
+    <Image
+      src={imageSrc}
+      alt="L6-Sketch-Base"
+      fill
+      unoptimized
+      className="object-cover grayscale contrast-[140%] brightness-[120%] sepia-[.3]"
+    />
+    <Image
+      src={imageSrc}
+      alt="L6-Sketch-Shade"
+      fill
+      unoptimized
+      className="absolute inset-0 object-cover grayscale invert blur-[3px] mix-blend-color-dodge opacity-20"
+    />
+  </div>
+
+  {/* 5. TEXTURE LAYER: Fine Canvas/Paper Grain */}
+  <div className="absolute inset-0 z-40 pointer-events-none opacity-[0.15] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+
+</div>
       );
 
     case 7:

@@ -13,6 +13,7 @@ import RetroTV from "@/components/items/RetroTV";
 import SimpleShelf from "@/components/items/SimpleShelf";
 import TodoList from "./items/TodoList";
 import JoinPaintingModal from "./JoinPaintingModal";
+import LofiFireplace from "./items/LofiFireplace";
 
 interface SideMenuProps {
   isOpen: boolean;
@@ -137,6 +138,12 @@ export default function SideMenu({ isOpen, onClose, onColorSelect, onCreateClick
           </div>
         );
       default: return null;
+      case "lofi-fireplace": // <--- ADDED PREVIEW CASE
+        return (
+          <div className="w-full h-[100px] flex justify-center items-center scale-[0.35] origin-center pointer-events-none">
+            <LofiFireplace />
+          </div>
+        );
     }
   };
 
