@@ -34,7 +34,7 @@ interface FrameData {
   revealedBlocks: number;
   totalBlocks: number;
   shuffledIndices: number[]; 
-  shareCode?: string | null; // Added for multiplayer sync
+  shareCode?: string | null; 
 }
 
 interface ItemData {
@@ -143,16 +143,13 @@ export default function GalleryPage() {
     return () => unsubscribeUser();
   }, [user]);
 
-  // --- SYNC: PAINTINGS (MULTIPLAYER READY) ---
+  // --- SYNC: PAINTINGS ---
   useEffect(() => {
     if (!user) return;
-
-    // Use 'allowedUsers' array contains to find all paintings the user is linked to
     const q = query(
       collection(db, "paintings"), 
       where("allowedUsers", "array-contains", user.uid)
     );
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const paintingsData = snapshot.docs.map((doc) => {
         const data = doc.data();
@@ -240,7 +237,6 @@ export default function GalleryPage() {
       ref={containerRef}
       style={{ backgroundColor: wallColor || undefined }}
     >
-      {/* MENU & MODALS */}
       <SideMenu 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
@@ -255,7 +251,6 @@ export default function GalleryPage() {
         onSuccess={() => console.log("New setup confirmed")}
       />
 
-      {/* FIXED UI CONTROLS */}
       <div className="absolute inset-0 z-[80] pointer-events-none">
         <div className="flex gap-4 p-6 pointer-events-auto">
           {isMenuOpen ? (
@@ -280,14 +275,12 @@ export default function GalleryPage() {
         </div>
       </div>
 
-      {/* INFINITE WALL WORLD */}
       <motion.div
         drag
         dragMomentum={false}
         style={{ x: cameraX, y: cameraY, scale }}
         className="absolute inset-0 flex items-center justify-center cursor-grab active:cursor-grabbing"
       >
-        {/* RENDER PAINTINGS */}
         {frames.map((frame) => (
           <motion.div
             key={frame.id}
@@ -303,6 +296,11 @@ export default function GalleryPage() {
             whileDrag={{ zIndex: 100 }}
             className="absolute cursor-grab active:cursor-grabbing"
           >
+            {/* PAINTING TITLE LABEL */}
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-3 py-1 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] pointer-events-none whitespace-nowrap z-10">
+              <span className="text-xs font-black uppercase tracking-widest text-app-text">{frame.title}</span>
+            </div>
+
             <PaintingFrame 
               src={frame.src} 
               title={frame.title} 
@@ -319,7 +317,6 @@ export default function GalleryPage() {
           </motion.div>
         ))}
 
-        {/* RENDER DYNAMIC ITEMS */}
         {items.map((item) => (
           <motion.div
             key={item.id}
@@ -336,7 +333,6 @@ export default function GalleryPage() {
             style={{ zIndex: item.zIndex || 0 }}
             className="absolute cursor-grab active:cursor-grabbing" 
           >
-            {/* ITEM TOOLBAR */}
             <AnimatePresence>
               {selectedItemId === item.id && (
                 <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-[110]">
@@ -350,7 +346,6 @@ export default function GalleryPage() {
               )}
             </AnimatePresence>
 
-            {/* ITEM SWITCH LOGIC */}
             {item.src === "todo-list" ? (
               <TodoList 
                 initialTasks={item.tasks} 
@@ -396,7 +391,6 @@ export default function GalleryPage() {
         ))}
       </motion.div>
 
-      {/* DETAIL MODAL */}
       {selectedFrame && (
         <PictureModal 
           isOpen={isModalOpen}
