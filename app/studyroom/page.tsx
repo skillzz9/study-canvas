@@ -82,47 +82,47 @@ useEffect(() => {
     let unsubscribePresence: (() => void) | null = null;
 
     const initializeRoom = async () => {
-      hasInitialized.current = true;
-      try {
-        const profile = await getUserDocument(user.uid);
-        if (!isMounted) return;
-        setUserData(profile);
+  if (hasInitialized.current) return;
+  hasInitialized.current = true;
 
-        // CHECK IF ROOM EXISTS BY SEEING DATA
-        const roomSnap = await getDoc(doc(db, "paintings", paintingId));
-        const roomData = roomSnap.data();
+  try {
+    const profile = await getUserDocument(user.uid);
+    setUserData(profile);
 
-        // 2. Decide: Create or Join?
-        // We CREATE if the doc doesn't exist, or if numOfAvatars is 0/undefined (Room is dead)
-        if (!roomSnap.exists() || !roomData?.numOfAvatars || roomData.numOfAvatars === 0) {
-          // creating the room if it doesnt exist
-          await createRoom(
-            user.uid,
-            paintingId,
-            totalMinutes || 60,
-            gridSize || 6,
-            totalLayers || 5,
-            totalSessionBlocks
-          );
-        } else {
-          // joining the room that already exists
-          await joinRoom(user.uid, paintingId, totalMinutes || 60);
-        }
+    // 1. Peek at the room first (Non-transactional)
+    const roomSnap = await getDoc(doc(db, "paintings", paintingId));
+    const roomData = roomSnap.data();
 
-        // 3. Setup Presence (Same as before)
-        await updatePresence(user, profile, paintingId, true);
-        const presenceRef = collection(db, "paintings", paintingId, "presence");
-        unsubscribePresence = onSnapshot(presenceRef, (snapshot) => {
-          const players = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          if (isMounted) setCollaborators(players);
-        });
+    // 2. Decide: Create or Join?
+    // If numOfAvatars is 0, null, or document doesn't exist, we start fresh.
+    if (!roomSnap.exists() || !roomData?.numOfAvatars || roomData.numOfAvatars === 0) {
+      await createRoom(
+        user.uid,
+        paintingId,
+        totalMinutes,
+        gridSize,
+        totalLayers
+      );
+    } else {
+      await joinRoom(user.uid, paintingId, totalMinutes);
+    }
 
-      } catch (error) {
-        console.error("Initialization Error:", error);
-      } finally {
-        if (isMounted) setDataLoading(false);
-      }
-    };
+    // 3. Setup Presence
+    await updatePresence(user, profile, paintingId, true);
+    
+    const presenceRef = collection(db, "paintings", paintingId, "presence");
+    unsubscribePresence = onSnapshot(presenceRef, (snapshot) => {
+      const players = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCollaborators(players);
+    });
+
+  } catch (error) {
+    console.error("Room Handshake Failed:", error);
+    // Even if it fails, let the user see the room (they might be able to spectate)
+  } finally {
+    setDataLoading(false); // <--- CRITICAL: This un-sticks the UI
+  }
+};
 
     initializeRoom();
 

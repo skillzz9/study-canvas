@@ -9,90 +9,43 @@ import {
   increment,
 } from "firebase/firestore";
 
-export const createRoom = async (
-  uid: string, 
-  paintingId: string, 
-  totalBlocks: number, 
-  totalMinutes: number, 
-  gridSize: number, 
-  totalLayers: number
-) => {
+// The "Heavy" function - only called by the first person
+export const createRoom = async (uid: string, paintingId: string, totalMinutes: number, gridSize: number, totalLayers: number) => {
   const roomRef = doc(db, "paintings", paintingId);
-
   return await runTransaction(db, async (transaction) => {
-    const roomSnap = await transaction.get(roomRef);
+    const snap = await transaction.get(roomRef);
+    
+    // Only generate indices if they don't exist
     const indices = generateShuffledIndices(gridSize || 6, totalLayers || 5);
+    
+    const baseData = {
+      gridSize: gridSize || 6,
+      totalLayers: totalLayers || 5,
+      status: "idle",
+      numOfAvatars: 1,
+      revealedBlocks: snap.exists() ? (snap.data().revealedBlocks || 0) : 0,
+      totalMinutes: totalMinutes || 60,
+      shuffledIndices: snap.exists() ? (snap.data().shuffledIndices || indices) : indices,
+      accumulatedMs: snap.exists() ? (snap.data().accumulatedMs || 0) : 0,
+      lastStartTime: null,
+      createdBy: uid,
+      allowedUsers: snap.exists() ? [...new Set([...snap.data().allowedUsers, uid])] : [uid]
+    };
 
-    // CASE A: Document does not exist at all
-    if (!roomSnap.exists()) {
-      transaction.set(roomRef, {
-        gridSize: gridSize || 6,
-        totalLayers: totalLayers || 5,
-        status: "idle",
-        numOfAvatars: 1,
-        revealedBlocks: 0,
-        totalNumberOfBlocks: totalBlocks || 180,
-        totalMinutes: totalMinutes || 60,
-        shuffledIndices: indices,
-        accumulatedMs: 0,
-        lastStartTime: null,
-        createdBy: uid,
-        allowedUsers: [uid],
-        currentTurnIndex: 0,
-      });
-      return "created";
-    }
-
-    const roomData = roomSnap.data();
-
-    // CASE B: Document exists but lacks room properties
-    if (!roomData.status || roomData.numOfAvatars === undefined) {
-      transaction.update(roomRef, {
-        status: "idle",
-        numOfAvatars: 1,
-        revealedBlocks: roomData.revealedBlocks || 0,
-        shuffledIndices: roomData.shuffledIndices || indices,
-        accumulatedMs: roomData.accumulatedMs || 0,
-        lastStartTime: null,
-        gridSize: roomData.gridSize || gridSize,
-        totalLayers: roomData.totalLayers || totalLayers,
-        allowedUsers: roomData.allowedUsers || [uid]
-      });
-      return "initialized";
-    }
-
-    return "exists"; // Fallback if room is already active
+    transaction.set(roomRef, baseData, { merge: true });
+    return "created";
   });
 };
-/**
- * Handles Case C (Standard Join).
- * Used when numOfAvatars is already >= 1.
- */
-export const joinRoom = async (
-  uid: string, 
-  paintingId: string, 
-  totalMinutes: number
-) => {
+
+// The "Light" function - called by everyone else
+export const joinRoom = async (uid: string, paintingId: string, totalMinutes: number) => {
   const roomRef = doc(db, "paintings", paintingId);
-
-  return await runTransaction(db, async (transaction) => {
-    const roomSnap = await transaction.get(roomRef);
-    
-    if (!roomSnap.exists()) {
-      throw new Error("Cannot join a room that hasn't been created yet.");
-    }
-
-    const roomData = roomSnap.data();
-
-    // Standard Join logic
-    transaction.update(roomRef, {
-      // Atomic increment ensures accuracy in high-traffic sessions
-      numOfAvatars: increment(1),
-      totalMinutes: totalMinutes || roomData.totalMinutes || 60
-    });
-
-    return "joined";
+  // Atomic increment is much faster and rarely conflicts
+  await updateDoc(roomRef, {
+    numOfAvatars: increment(1),
+    totalMinutes: totalMinutes
   });
+  return "joined";
 };
 
 export const leaveGlobalRoom = async (uid: string, paintingId: string) => {
