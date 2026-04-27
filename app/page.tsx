@@ -8,7 +8,6 @@ import { UserProfile } from "@/types";
 import Link from "next/link";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { joinOrCreateGlobalRoom } from "@/lib/roomService";
 import { useTheme } from "next-themes"; // Import theme hook
 
 export default function Home() {
@@ -62,32 +61,7 @@ export default function Home() {
     }
   }, [user, authLoading, router]);
 
-  const handleEnterStudyRoom = async () => {
-    if (image && user) {
-      setButtonLoading(true);
-      try {
-        const calculatedTotalMinutes = (hours * 60) + minutes;
-        setTotalMinutes(calculatedTotalMinutes);
-        localStorage.setItem("studyImage", image);
-        localStorage.setItem("studyTime", calculatedTotalMinutes.toString());
 
-        await joinOrCreateGlobalRoom(
-          user.uid,
-          "painting", 
-          TOTAL_BLOCKS, 
-          calculatedTotalMinutes, 
-          GRID_SIZE, 
-          TOTAL_LAYERS,
-        );
-        router.push("/studyroom");
-      } catch (error) {
-        console.error("Error entering room:", error);
-        alert("Failed to join the room. Please try again.");
-      } finally {
-        setButtonLoading(false);
-      }
-    }
-  };
 
   if (!mounted) return null;
 
@@ -175,7 +149,6 @@ export default function Home() {
               )}
 
               <button 
-                onClick={handleEnterStudyRoom}
                 disabled={buttonLoading}
                 className="w-full rounded-xl bg-app-accent py-4 font-bold text-app-card border-2 border-app-border shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all uppercase disabled:opacity-50"
               >

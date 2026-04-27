@@ -16,6 +16,8 @@ interface AvatarProps {
   lastSeen: any;
   roomStatus: string;         // "active" or "idle"
   globalStartTime: number | null; // ms timestamp from DB
+  currentTurnIndex: number;
+  isMe: boolean;
 }
 
 export default function Avatar({ 
@@ -30,15 +32,23 @@ export default function Avatar({
   userName,
   lastSeen,
   roomStatus,
-  globalStartTime
+  globalStartTime,
+  currentTurnIndex,
+  isMe,
 }: AvatarProps) {
   
+  // If the avatar is going up to the canvas, painting, or moving down. If not busy, then do idle animation 
   const [isBusy, setIsBusy] = useState(false);
+  // if the avatar is painting the block
   const [isPainting, setIsPainting] = useState(false);
+
+  // the local stopwatch of the avatar
   const [stopwatch, setStopwatch] = useState("00:00:00");
   
   // State for the zoom-in entry effect
   const [isMounted, setIsMounted] = useState(false);
+
+  const blocksPerlayer = gridSize * gridSize
 
   const homeX = 200 + (myIndex * 45); 
   const homeY = 580;
@@ -46,8 +56,6 @@ export default function Avatar({
 
   // Trigger zoom effect on mount
   useEffect(() => {
-    // We wait 100ms to ensure the browser paints the 'scale(0)' state first.
-    // This "kickstarts" the CSS transition.
     const timer = setTimeout(() => {
       setIsMounted(true);
     }, 100);
@@ -55,7 +63,7 @@ export default function Avatar({
     return () => clearTimeout(timer);
   }, []);
 
-  // 1. CONDITIONAL STOPWATCH LOGIC
+  // LOCAL STOPWATCH LOGIC
   useEffect(() => {
     if (roomStatus !== "active" || !globalStartTime || !lastSeen) {
       setStopwatch("00:00:00");
@@ -82,7 +90,8 @@ export default function Avatar({
     return () => clearInterval(interval);
   }, [lastSeen, roomStatus, globalStartTime]);
 
-  // 2. MOVEMENT LOGIC
+
+  // MOVES AVATAR TO NEW LOCATION
   const moveAvatar = (newX: number, newY: number) => {
     setState(current => ({
       x: newX,
@@ -91,15 +100,16 @@ export default function Avatar({
     }));
   };
 
+  // gets coordinates of the next block
   const getCoords = (globalIndex: number) => {
-    const localIndex = globalIndex % (gridSize * gridSize);
+    const localIndex = globalIndex % (blocksPerlayer);
     const col = localIndex % gridSize;
     const row = Math.floor(localIndex / gridSize);
     const blockSize = 400 / gridSize;
     return { x: col * blockSize + blockSize / 2, y: row * blockSize + blockSize / 2 };
   };
 
-  // 3. IDLE WALKING
+  // IDLE WALKING LOGIC
   useEffect(() => {
     if (isBusy) return;
 
@@ -111,13 +121,17 @@ export default function Avatar({
     return () => clearInterval(idleInterval);
   }, [isBusy, homeY]);
 
-  // 4. ARTIST LOOP
+  // WHAT TRIGGERS THE AVATAR TO MOVE
   useEffect(() => {
-    const isJobAvailable = targetBlocksCount > revealedCount;
-    const isMyTurn = revealedCount % Math.max(1, totalWorkers) === myIndex;
-
+  // CRITICAL CODE RIGHT HERE 
+  //-----------------------------------------------------------------------------------------------------------------------------------//
+    const isJobAvailable = targetBlocksCount > revealedCount; // this basically tells us they are behind schedule, so they must act. 
+    const isMyTurn = currentTurnIndex === myIndex;
+  //-----------------------------------------------------------------------------------------------------------------------------------//
+  
     if (isJobAvailable && isMyTurn && !isBusy && shuffledIndices.length > 0) {
-      const runArtistLoop = async () => {
+      // defines the artist loop function 
+        const runArtistLoop = async () => {
         setIsBusy(true);
         const nextGlobalIndex = shuffledIndices[revealedCount];
         if (nextGlobalIndex === undefined) { setIsBusy(false); return; }
@@ -137,8 +151,11 @@ export default function Avatar({
         // 4. Wait (halfway through the cloud animation)
         await new Promise(r => setTimeout(r, 333)); // CHANGED: 1000ms -> 333ms
         
-        // 5. REVEAL THE BLOCK (Happens behind the clouds)
-        onBlockComplete?.();
+        // IF THE AVATAR IS ME THEN I REVEAL THE BLOCK, IF NOT THEN DONT 
+        // this stops duplicate things being sent
+        if (isMe) {
+          await onBlockComplete?.();
+        }
         
         // 6. Wait so the clouds stay visible a bit longer
         await new Promise(r => setTimeout(r, 333)); // CHANGED: 1000ms -> 333ms
@@ -154,7 +171,7 @@ export default function Avatar({
       };
       runArtistLoop();
     }
-  }, [targetBlocksCount, revealedCount, isBusy, myIndex, totalWorkers, shuffledIndices]);
+  }, [targetBlocksCount, revealedCount, isBusy, myIndex, totalWorkers, currentTurnIndex, shuffledIndices]);
 
   return (
     <div 

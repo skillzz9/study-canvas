@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, AnimatePresence } from "framer-motion";
 import PaintingFrame from "@/components/PaintingFrame";
-import PictureModal from "@/components/PictureModal";
+import PictureModal from "@/components/PaintingModal";
 import SideMenu from "@/components/SideMenu";
 import CreatePaintingModal from "@/components/CreatePaintingModal";
 import ItemToolbar from "@/components/ItemToolbar"; 
@@ -34,6 +34,7 @@ interface FrameData {
   revealedBlocks: number;
   totalBlocks: number;
   shuffledIndices: number[]; 
+  shareCode?: string | null; 
 }
 
 interface ItemData {
@@ -67,7 +68,8 @@ export default function GalleryPage() {
   const isDraggingItem = useRef(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
-  // HANDLERS: DATABASE UPDATES
+  // --- DATABASE HANDLERS ---
+
   const handleColorSelect = async (color: string | null) => {
     setWallColor(color);
     if (!user) return;
@@ -92,7 +94,6 @@ export default function GalleryPage() {
   };
 
   const handleBringToFront = async (id: string) => {
-    if (!user) return;
     const maxZ = items.length > 0 ? Math.max(...items.map(i => i.zIndex)) : 0;
     try {
       const itemRef = doc(db, "galleryItems", id);
@@ -101,7 +102,6 @@ export default function GalleryPage() {
   };
 
   const handleBringToBack = async (id: string) => {
-    if (!user) return;
     const minZ = items.length > 0 ? Math.min(...items.map(i => i.zIndex)) : 0;
     try {
       const itemRef = doc(db, "galleryItems", id);
@@ -109,9 +109,7 @@ export default function GalleryPage() {
     } catch (e) { console.error(e); }
   };
 
-  // HANDLERS: STATIONERY & TOOLS CONTENT
   const handleUpdateItemText = async (itemId: string, text: string) => {
-    if (!user) return;
     try {
       const itemRef = doc(db, "galleryItems", itemId);
       await updateDoc(itemRef, { text });
@@ -119,7 +117,6 @@ export default function GalleryPage() {
   };
 
   const handleUpdateItemAffirmations = async (itemId: string, affirmations: string[]) => {
-    if (!user) return;
     try {
       const itemRef = doc(db, "galleryItems", itemId);
       await updateDoc(itemRef, { affirmations });
@@ -127,14 +124,13 @@ export default function GalleryPage() {
   };
 
   const handleUpdateTodoTasks = async (itemId: string, tasks: { text: string; completed: boolean }[]) => {
-    if (!user) return;
     try {
       const itemRef = doc(db, "galleryItems", itemId);
       await updateDoc(itemRef, { tasks });
     } catch (error) { console.error("Todo update failed:", error); }
   };
 
-  // SYNC: USER DATA (WALL COLOR)
+  // --- SYNC: USER DATA ---
   useEffect(() => {
     if (!user) return;
     const userRef = doc(db, "users", user.uid);
@@ -147,10 +143,13 @@ export default function GalleryPage() {
     return () => unsubscribeUser();
   }, [user]);
 
-  // SYNC: PAINTINGS
+  // --- SYNC: PAINTINGS ---
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, "paintings"), where("userId", "==", user.uid));
+    const q = query(
+      collection(db, "paintings"), 
+      where("allowedUsers", "array-contains", user.uid)
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const paintingsData = snapshot.docs.map((doc) => {
         const data = doc.data();
@@ -162,8 +161,9 @@ export default function GalleryPage() {
           title: data.title || "Untitled",
           subject: data.subject || "General",
           revealedBlocks: data.revealedBlocks || 0,
-          totalBlocks: data.totalBlocks || 180,
+          totalBlocks: data.totalNumberOfBlocks || 180,
           shuffledIndices: data.shuffledIndices || [], 
+          shareCode: data.shareCode || null,
         };
       });
       setFrames(paintingsData);
@@ -172,7 +172,7 @@ export default function GalleryPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // SYNC: GALLERY ITEMS
+  // --- SYNC: GALLERY ITEMS ---
   useEffect(() => {
     if (!user) return;
     const qItems = query(collection(db, "galleryItems"), where("userId", "==", user.uid));
@@ -195,7 +195,7 @@ export default function GalleryPage() {
     return () => unsubscribeItems();
   }, [user]);
 
-  // CAMERA & WHEEL CONTROLS
+  // --- CONTROLS & DRAGGING ---
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -212,14 +212,6 @@ export default function GalleryPage() {
     return () => container.removeEventListener("wheel", handleNativeWheel);
   }, [scale, isModalOpen, isCreateModalOpen, isMenuOpen]);
 
-  const handleWheel = (e: React.WheelEvent) => {
-    if (isModalOpen || isCreateModalOpen || isMenuOpen) return;
-    const sensitivity = 0.001; 
-    const delta = e.deltaY * scale * sensitivity;
-    setScale(Math.min(Math.max(scale - delta, 0.1), 3));
-  };
-
-  // DRAG END HANDLERS
   const handleDragEnd = async (id: string, info: any) => {
     const frame = frames.find(f => f.id === id);
     if (!frame) return;
@@ -241,12 +233,10 @@ export default function GalleryPage() {
   return (
     <main 
       className="relative w-full h-screen bg-app-bg overflow-hidden font-space select-none transition-colors duration-300"
-      onWheel={handleWheel}
       onClick={() => setSelectedItemId(null)}
       ref={containerRef}
       style={{ backgroundColor: wallColor || undefined }}
     >
-      {/* MENU & MODALS */}
       <SideMenu 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
@@ -261,7 +251,6 @@ export default function GalleryPage() {
         onSuccess={() => console.log("New setup confirmed")}
       />
 
-      {/* FIXED UI CONTROLS */}
       <div className="absolute inset-0 z-[80] pointer-events-none">
         <div className="flex gap-4 p-6 pointer-events-auto">
           {isMenuOpen ? (
@@ -286,14 +275,12 @@ export default function GalleryPage() {
         </div>
       </div>
 
-      {/* INFINITE WALL WORLD */}
       <motion.div
         drag
         dragMomentum={false}
         style={{ x: cameraX, y: cameraY, scale }}
         className="absolute inset-0 flex items-center justify-center cursor-grab active:cursor-grabbing"
       >
-        {/* RENDER PAINTINGS */}
         {frames.map((frame) => (
           <motion.div
             key={frame.id}
@@ -309,6 +296,11 @@ export default function GalleryPage() {
             whileDrag={{ zIndex: 100 }}
             className="absolute cursor-grab active:cursor-grabbing"
           >
+            {/* PAINTING TITLE LABEL */}
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-3 py-1 bg-app-card border-4 border-app-border rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] pointer-events-none whitespace-nowrap z-10">
+              <span className="text-xs font-black uppercase tracking-widest text-app-text">{frame.title}</span>
+            </div>
+
             <PaintingFrame 
               src={frame.src} 
               title={frame.title} 
@@ -325,7 +317,6 @@ export default function GalleryPage() {
           </motion.div>
         ))}
 
-        {/* RENDER DYNAMIC ITEMS */}
         {items.map((item) => (
           <motion.div
             key={item.id}
@@ -342,7 +333,6 @@ export default function GalleryPage() {
             style={{ zIndex: item.zIndex || 0 }}
             className="absolute cursor-grab active:cursor-grabbing" 
           >
-            {/* ITEM TOOLBAR */}
             <AnimatePresence>
               {selectedItemId === item.id && (
                 <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-[110]">
@@ -356,7 +346,6 @@ export default function GalleryPage() {
               )}
             </AnimatePresence>
 
-            {/* ITEM SWITCH LOGIC */}
             {item.src === "todo-list" ? (
               <TodoList 
                 initialTasks={item.tasks} 
@@ -396,13 +385,12 @@ export default function GalleryPage() {
             ) : item.src === "/items/window.png" ? (
               <Window theme={theme as any} />
             ) : (
-              <img src={item.src} className="w-auto h-auto max-w-[250px] object-contain drop-shadow-xl pointer-events-none" />
+              <img src={item.src} className="w-auto h-auto max-w-[250px] object-contain drop-shadow-xl pointer-events-none" alt="" />
             )}
           </motion.div>
         ))}
       </motion.div>
 
-      {/* DETAIL MODAL */}
       {selectedFrame && (
         <PictureModal 
           isOpen={isModalOpen}
@@ -414,6 +402,7 @@ export default function GalleryPage() {
           revealedCount={selectedFrame.revealedBlocks}
           totalBlocks={selectedFrame.totalBlocks}
           shuffledIndices={selectedFrame.shuffledIndices}
+          shareCode={selectedFrame.shareCode}
         />
       )}
     </main>

@@ -16,42 +16,54 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   
-  // DEFAULT VALUES FOR DATA //
+  // INITIALIZING FORM DATA
   const [formData, setFormData] = useState({
     title: "",
     subject: "",
-    hours: 10, // default value of 10 to display
+    hours: 10,
     isShared: false,
   });
-  // NOT UPLOADING TO DATABASE, JUST SAVING LOCALLY
+
+  // Local helper to generate a preview of the code for the UI
+  const [tempCode, setTempCode] = useState<string>("");
+
+  // uploading a file and getting the filepath
   const handleFile = (file: File) => {
     if (file && file.type.startsWith("image/")) {
       setPreviewUrl(URL.createObjectURL(file));
-      // We store just the filename for your manual public folder logic
+      // Stores filename for manual public folder logic
       setSelectedFileName(`/${file.name}`);
     }
   };
 
+  // The UI changes when you click solo/shared. 
+  const toggleShared = () => {
+    const newShared = !formData.isShared;
+    setFormData({ ...formData, isShared: newShared });
+  };
 
-  // CREATES PAINTING IN DATABASE. 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setLoading(true);
 
     try {
-      // CALLS PAINTING SERVICE FUNCTION WHICH ALSO MAKES THE INDEX LIST //
+      // CREATES PAINTING FROM THE MODAL AND ADDS TO DATABASE
       await createPainting(
         user.uid,
         formData.title,
         formData.subject,
         formData.hours,
-        selectedFileName || "/test.png" 
+        selectedFileName || "/test.png",
+        formData.isShared 
       );
 
       onSuccess();
       onClose();
+      // Reset local state after successful creation
       setPreviewUrl(null);
+      setFormData({ title: "", subject: "", hours: 10, isShared: false });
+      setTempCode("");
     } catch (error) {
       console.error("Failed to create painting:", error);
     } finally {
@@ -90,14 +102,14 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
                     e.preventDefault();
                     if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
                   }}
-                  className="relative w-full h-48 border-4 border-dashed border-app-border rounded-2xl bg-app-bg flex flex-col items-center justify-center overflow-hidden transition-all hover:border-app-accent"
+                  className="relative w-full h-40 border-4 border-dashed border-app-border rounded-2xl bg-app-bg flex flex-col items-center justify-center overflow-hidden transition-all hover:border-app-accent"
                 >
                   {previewUrl ? (
                     <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
                   ) : (
                     <div className="text-center p-4">
                       <p className="text-[10px] font-black uppercase text-app-accent">Drag & Drop Image</p>
-                      <p className="text-[8px] uppercase text-app-text opacity-40 mt-1">Files should match your public folder names</p>
+                      <p className="text-[8px] uppercase text-app-text opacity-40 mt-1">Match your public folder names</p>
                     </div>
                   )}
                   <input 
@@ -112,28 +124,73 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                    <label className="text-[10px] font-black uppercase text-app-accent tracking-widest">Title</label>
-                   <input required type="text" className="bg-app-bg border-4 border-app-border p-3 rounded-xl text-app-text font-bold outline-none text-xs" onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
+                   <input 
+                    required 
+                    type="text" 
+                    value={formData.title}
+                    className="bg-app-bg border-4 border-app-border p-3 rounded-xl text-app-text font-bold outline-none text-xs" 
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })} 
+                   />
                 </div>
                 <div className="flex flex-col gap-2">
                    <label className="text-[10px] font-black uppercase text-app-accent tracking-widest">Subject</label>
-                   <input required type="text" className="bg-app-bg border-4 border-app-border p-3 rounded-xl text-app-text font-bold outline-none text-xs" onChange={(e) => setFormData({ ...formData, subject: e.target.value })} />
+                   <input 
+                    required 
+                    type="text" 
+                    value={formData.subject}
+                    className="bg-app-bg border-4 border-app-border p-3 rounded-xl text-app-text font-bold outline-none text-xs" 
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })} 
+                   />
                 </div>
               </div>
 
+              {/* HOURS & TYPE */}
               <div className="flex gap-4">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[10px] font-black uppercase text-app-accent tracking-widest">Target Hours</label>
-                  <input required type="number" value={formData.hours} className="bg-app-bg border-4 border-app-border p-3 rounded-xl text-app-text font-bold outline-none text-xs" onChange={(e) => setFormData({ ...formData, hours: Number(e.target.value) })} />
+                  <input 
+                    required 
+                    type="number" 
+                    value={formData.hours} 
+                    className="bg-app-bg border-4 border-app-border p-3 rounded-xl text-app-text font-bold outline-none text-xs" 
+                    onChange={(e) => setFormData({ ...formData, hours: Number(e.target.value) })} 
+                  />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[10px] font-black uppercase text-app-accent tracking-widest">Type</label>
-                  <button type="button" onClick={() => setFormData({ ...formData, isShared: !formData.isShared })} className={`h-full border-4 border-app-border rounded-xl font-black uppercase text-[10px] transition-all ${formData.isShared ? "bg-app-accent text-app-card" : "bg-app-bg text-app-text"}`}>
-                    {formData.isShared ? "Shared" : "Solo"}
+                  <button 
+                    type="button" 
+                    onClick={toggleShared} 
+                    className={`h-full border-4 border-app-border rounded-xl font-black uppercase text-[10px] transition-all flex items-center justify-center gap-2 ${formData.isShared ? "bg-app-accent text-app-card" : "bg-app-bg text-app-text"}`}
+                  >
+                    {formData.isShared ? "👥 Shared" : "👤 Solo"}
                   </button>
                 </div>
               </div>
 
-              <button disabled={loading} type="submit" className="mt-4 w-full py-4 bg-app-accent text-app-card border-4 border-app-border rounded-2xl font-black uppercase shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all">
+              {/* SHARED CODE PREVIEW */}
+              <AnimatePresence>
+                {formData.isShared && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }} 
+                    animate={{ height: "auto", opacity: 1 }} 
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="bg-black/20 rounded-xl p-4 border-2 border-app-border border-dashed text-center">
+                      <p className="text-[9px] font-black uppercase text-app-accent mb-1">Canvas Sync Code</p>
+                      <p className="text-xl font-mono font-black tracking-widest text-app-text">{tempCode}</p>
+                      <p className="text-[8px] uppercase text-app-text/40 mt-1">Friends use this to add this canvas to their wall</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <button 
+                disabled={loading} 
+                type="submit" 
+                className="mt-4 w-full py-4 bg-app-accent text-app-card border-4 border-app-border rounded-2xl font-black uppercase shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-50"
+              >
                 {loading ? "Syncing..." : "Drop Canvas on Wall"}
               </button>
             </form>
