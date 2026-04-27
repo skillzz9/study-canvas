@@ -266,6 +266,7 @@ const handleBlockComplete = async () => {
             myIndex={index}
             totalWorkers={sortedWorkers.length}
             revealedCount={revealedCount}
+            isMe={player.id === user?.uid} // determines if the person on the browser is me or some other avatar from another browser
             userName={player.username}
             avatarSrc={player.avatar}
             targetBlocksCount={targetBlocksCount} // what triggers the avatar to move 

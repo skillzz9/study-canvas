@@ -17,6 +17,7 @@ interface AvatarProps {
   roomStatus: string;         // "active" or "idle"
   globalStartTime: number | null; // ms timestamp from DB
   currentTurnIndex: number;
+  isMe: boolean;
 }
 
 export default function Avatar({ 
@@ -32,7 +33,8 @@ export default function Avatar({
   lastSeen,
   roomStatus,
   globalStartTime,
-  currentTurnIndex
+  currentTurnIndex,
+  isMe,
 }: AvatarProps) {
   
   // If the avatar is going up to the canvas, painting, or moving down. If not busy, then do idle animation 
@@ -145,8 +147,11 @@ const runArtistLoop = async () => {
         // 4. Wait (halfway through the cloud animation)
         await new Promise(r => setTimeout(r, 333)); // CHANGED: 1000ms -> 333ms
         
-        // 5. REVEAL THE BLOCK (Happens behind the clouds)
-        await onBlockComplete?.();
+        // IF THE AVATAR IS ME THEN I REVEAL THE BLOCK, IF NOT THEN DONT 
+        // this stops duplicate things being sent
+        if (isMe) {
+          await onBlockComplete?.();
+        }
         
         // 6. Wait so the clouds stay visible a bit longer
         await new Promise(r => setTimeout(r, 333)); // CHANGED: 1000ms -> 333ms
