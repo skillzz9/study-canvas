@@ -123,11 +123,15 @@ export default function Avatar({
 
   // WHAT TRIGGERS THE AVATAR TO MOVE
   useEffect(() => {
+  // CRITICAL CODE RIGHT HERE 
+  //-----------------------------------------------------------------------------------------------------------------------------------//
     const isJobAvailable = targetBlocksCount > revealedCount; // this basically tells us they are behind schedule, so they must act. 
     const isMyTurn = currentTurnIndex === myIndex;
+  //-----------------------------------------------------------------------------------------------------------------------------------//
   
     if (isJobAvailable && isMyTurn && !isBusy && shuffledIndices.length > 0) {
-const runArtistLoop = async () => {
+      // defines the artist loop function 
+        const runArtistLoop = async () => {
         setIsBusy(true);
         const nextGlobalIndex = shuffledIndices[revealedCount];
         if (nextGlobalIndex === undefined) { setIsBusy(false); return; }
