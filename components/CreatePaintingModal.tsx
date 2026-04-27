@@ -16,6 +16,7 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   
+  // INITIALIZING FORM DATA
   const [formData, setFormData] = useState({
     title: "",
     subject: "",
@@ -26,6 +27,7 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
   // Local helper to generate a preview of the code for the UI
   const [tempCode, setTempCode] = useState<string>("");
 
+  // uploading a file and getting the filepath
   const handleFile = (file: File) => {
     if (file && file.type.startsWith("image/")) {
       setPreviewUrl(URL.createObjectURL(file));
@@ -34,13 +36,10 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
     }
   };
 
+  // The UI changes when you click solo/shared. 
   const toggleShared = () => {
     const newShared = !formData.isShared;
     setFormData({ ...formData, isShared: newShared });
-    if (newShared && !tempCode) {
-      // Just a visual preview for the UI state
-      setTempCode(Math.random().toString(36).substring(2, 7).toUpperCase());
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,7 +48,7 @@ export default function CreatePaintingModal({ isOpen, onClose, onSuccess }: Crea
     setLoading(true);
 
     try {
-      // Calls updated service that initializes allowedUsers with creator UID
+      // CREATES PAINTING FROM THE MODAL AND ADDS TO DATABASE
       await createPainting(
         user.uid,
         formData.title,

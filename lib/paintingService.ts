@@ -44,15 +44,19 @@ export const createPainting = async (
   return await addDoc(collection(db, "paintings"), paintingData);
 };
 
+// When a user moves a painting and lets go it updates its x and y coordinates 
 export const updatePaintingPosition = async (id: string, x: number, y: number) => {
   await updateDoc(doc(db, "paintings", id), { position: { x, y } });
 };
 
+
+// Adds a painting that is joined by a code
 export const joinPaintingByCode = async (userId: string, code: string) => {
   const q = query(collection(db, "paintings"), where("shareCode", "==", code.toUpperCase()));
   const snap = await getDocs(q);
   if (snap.empty) throw new Error("Invalid Code");
   const paintingRef = snap.docs[0].ref;
+  // adds allowed users
   await updateDoc(paintingRef, { allowedUsers: arrayUnion(userId) });
   return snap.docs[0].id;
 };

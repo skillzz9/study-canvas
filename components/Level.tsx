@@ -160,13 +160,30 @@ export default function Level({ imageSrc, level }: LevelProps) {
 
     case 7:
       return (
-        <Image
-          src={imageSrc}
-          alt="L7-Final"
-          fill
-          unoptimized
-          className="object-cover"
-        />
+<div className="relative w-full h-full bg-white">
+          {/* 1. BOTTOM LAYER: Tighter Watercolor Wash */}
+          <Image
+            src={imageSrc}
+            alt="L5-Color-Base"
+            fill
+            unoptimized
+            className="object-cover blur-[8px] saturate-[1.5] opacity-50 brightness-[1.05] sepia-[0.1] z-0"
+          />
+
+          {/* 2. MIDDLE LAYER: Photo-accurate Details */}
+          <Image
+            src={imageSrc}
+            alt="L5-Color-Details"
+            fill
+            unoptimized
+            className="absolute inset-0 object-cover blur-[2px] saturate-[1.2] opacity-60 mix-blend-multiply z-10"
+          />
+
+          {/* 3. TOP LAYER: The Detailed Sketch */}
+          <div className="absolute inset-0 z-20 mix-blend-multiply">
+            <P5FullSketch detailLevel={3} imageSrc={imageSrc} />
+          </div>
+        </div>
       );
 
           case 8:

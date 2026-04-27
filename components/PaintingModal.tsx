@@ -31,7 +31,7 @@ export default function PictureModal({
   totalBlocks,
   shuffledIndices, 
   targetHours,          
-  dateCreated = "APR 14, 2026",
+  dateCreated,
   shareCode
 }: PictureModalProps) {
   const router = useRouter();
@@ -58,6 +58,7 @@ export default function PictureModal({
     setCopied(false);
   }, [title, isOpen]);
 
+  // pushes to the link where the room is happening
   const handleContinuePainting = () => {
     router.push(`/studyroom?paintingId=${id}&goal=${sessionGoal}`);
   };
@@ -178,6 +179,7 @@ export default function PictureModal({
                             className="bg-transparent border-b-4 border-app-bg/50 text-3xl font-black tabular-nums w-24 outline-none text-app-bg pb-1 focus:border-app-bg transition-colors"
                           />
                           <button 
+                          // The function responsible for joining the painting
                             onClick={handleContinuePainting}
                             className="flex-1 bg-app-bg text-app-text font-black uppercase text-sm border-4 border-app-bg hover:opacity-90 transition-all hover:translate-x-[2px] hover:translate-y-[2px] shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none"
                           >

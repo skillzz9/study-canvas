@@ -5,10 +5,11 @@ import {
   serverTimestamp, 
   deleteDoc,
   updateDoc,
-  setDoc
+  setDoc,
+  increment,
 } from "firebase/firestore";
 
-export const joinOrCreateGlobalRoom = async (
+export const createRoom = async (
   uid: string, 
   paintingId: string, 
   totalBlocks: number, 
@@ -20,55 +21,77 @@ export const joinOrCreateGlobalRoom = async (
 
   return await runTransaction(db, async (transaction) => {
     const roomSnap = await transaction.get(roomRef);
-    
-    // CASE A: NEW ROOM
+    const indices = generateShuffledIndices(gridSize || 6, totalLayers || 5);
+
+    // CASE A: Document does not exist at all
     if (!roomSnap.exists()) {
-      const indices = generateShuffledIndices(gridSize, totalLayers);
       transaction.set(roomRef, {
-        gridSize: gridSize || 6, 
-        totalLayers: totalLayers || 5, 
-        status: "idle", 
+        gridSize: gridSize || 6,
+        totalLayers: totalLayers || 5,
+        status: "idle",
         numOfAvatars: 1,
-        revealedBlocks: 0, 
+        revealedBlocks: 0,
         totalNumberOfBlocks: totalBlocks || 180,
-        totalMinutes: totalMinutes || 60, 
-        shuffledIndices: indices, 
+        totalMinutes: totalMinutes || 60,
+        shuffledIndices: indices,
         accumulatedMs: 0,
-        lastStartTime: null, 
+        lastStartTime: null,
         createdBy: uid,
-        allowedUsers: [uid] 
+        allowedUsers: [uid],
+        currentTurnIndex: 0,
       });
       return "created";
     }
 
     const roomData = roomSnap.data();
-    
-    // CASE B: INITIALIZE OLD DATA
-    if (!roomData.status || roomData.numOfAvatars === undefined || !roomData.shuffledIndices) {
-      const indices = roomData.shuffledIndices || generateShuffledIndices(gridSize, totalLayers);
+
+    // CASE B: Document exists but lacks room properties
+    if (!roomData.status || roomData.numOfAvatars === undefined) {
       transaction.update(roomRef, {
-        status: "idle", 
+        status: "idle",
         numOfAvatars: 1,
         revealedBlocks: roomData.revealedBlocks || 0,
-        shuffledIndices: indices, 
+        shuffledIndices: roomData.shuffledIndices || indices,
         accumulatedMs: roomData.accumulatedMs || 0,
-        lastStartTime: null, 
+        lastStartTime: null,
         gridSize: roomData.gridSize || gridSize,
         totalLayers: roomData.totalLayers || totalLayers,
         allowedUsers: roomData.allowedUsers || [uid]
       });
       return "initialized";
-    } 
-    
-    // CASE C: STANDARD JOIN
-    else {
-      const currentAvatars = isNaN(roomData.numOfAvatars) ? 0 : roomData.numOfAvatars;
-      transaction.update(roomRef, {
-        numOfAvatars: currentAvatars + 1,
-        totalMinutes: totalMinutes || roomData.totalMinutes || 60
-      });
-      return "joined";
     }
+
+    return "exists"; // Fallback if room is already active
+  });
+};
+/**
+ * Handles Case C (Standard Join).
+ * Used when numOfAvatars is already >= 1.
+ */
+export const joinRoom = async (
+  uid: string, 
+  paintingId: string, 
+  totalMinutes: number
+) => {
+  const roomRef = doc(db, "paintings", paintingId);
+
+  return await runTransaction(db, async (transaction) => {
+    const roomSnap = await transaction.get(roomRef);
+    
+    if (!roomSnap.exists()) {
+      throw new Error("Cannot join a room that hasn't been created yet.");
+    }
+
+    const roomData = roomSnap.data();
+
+    // Standard Join logic
+    transaction.update(roomRef, {
+      // Atomic increment ensures accuracy in high-traffic sessions
+      numOfAvatars: increment(1),
+      totalMinutes: totalMinutes || roomData.totalMinutes || 60
+    });
+
+    return "joined";
   });
 };
 
@@ -117,6 +140,8 @@ export const updatePresence = async (user: any, userData: any, paintingId: strin
   await setDoc(presenceRef, data, { merge: true });
 };
 
+
+// HELPER FUNCTION TO CREATE INDICIES
 function generateShuffledIndices(gridSize: number, totalLayers: number) {
   const BLOCKS_PER_LAYER = gridSize * gridSize;
   const indices = [];

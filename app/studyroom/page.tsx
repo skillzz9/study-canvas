@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import confetti from 'canvas-confetti';
 import { useRouter, useSearchParams } from "next/navigation";
-import { doc, onSnapshot, collection, updateDoc, serverTimestamp, increment } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, collection, updateDoc, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Level from "@/components/Level";
 import GridRevealMask from "@/components/GridRevealMask";
@@ -12,14 +12,18 @@ import Desk from "@/components/Desk";
 import { useAuth } from "@/context/AuthContext";
 import { getUserDocument } from "@/lib/userService";
 import { UserProfile } from "@/types";
-import { updatePresence, leaveGlobalRoom, joinOrCreateGlobalRoom } from "@/lib/roomService";
+import { updatePresence, leaveGlobalRoom, createRoom, joinRoom } from "@/lib/roomService";
 
 function StudyRoomContent() {
   const router = useRouter();
-  // USING SEARCH PARAMETERS FOR STUDY ROOM (NOT GOOD)
+  // USING SEARCH PARAMETERS FOR STUDY ROOM 
+  // when the user goes to this page, it then reads the URL to see what painting its painting and for how long
   const searchParams = useSearchParams();
   // FOR GATHERING USER DATA FROM AUTH
   const { user, loading: authLoading } = useAuth();
+
+  // tells if the avatar on the screen has to go next. 
+  const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
   
   // Uses search params to get data (need to change this to get from database instead)
   const paintingId = searchParams.get("paintingId");
@@ -64,14 +68,14 @@ function StudyRoomContent() {
   const [dataLoading, setDataLoading] = useState(true);
   const hasInitialized = useRef(false); 
 
-  // 
-  const sortedWorkers = useMemo(() => {
-    return [...collaborators].sort((a, b) => a.id.localeCompare(b.id));
-  }, [collaborators]);
+  //  SORTS THE AVATARS CURRENTLY IN THE 
+const sortedWorkers = useMemo(() => {
+  return [...collaborators].sort((a, b) => a.id.localeCompare(b.id));
+}, [collaborators]);
 
   const isSessionComplete = totalSessionBlocks > 0 && revealedCount >= totalSessionBlocks;
 
-  useEffect(() => {
+useEffect(() => {
     if (authLoading || !user || !paintingId || hasInitialized.current) return;
 
     let isMounted = true;
@@ -84,18 +88,29 @@ function StudyRoomContent() {
         if (!isMounted) return;
         setUserData(profile);
 
-        // Ensure defaults are passed to avoid 'undefined' database errors
-        await joinOrCreateGlobalRoom(
-          user.uid,
-          paintingId,
-          totalSessionBlocks || 180,
-          totalMinutes || 60,
-          gridSize || 6,
-          totalLayers || 5
-        );
+        // CHECK IF ROOM EXISTS BY SEEING DATA
+        const roomSnap = await getDoc(doc(db, "paintings", paintingId));
+        const roomData = roomSnap.data();
 
+        // 2. Decide: Create or Join?
+        // We CREATE if the doc doesn't exist, or if numOfAvatars is 0/undefined (Room is dead)
+        if (!roomSnap.exists() || !roomData?.numOfAvatars || roomData.numOfAvatars === 0) {
+          // creating the room if it doesnt exist
+          await createRoom(
+            user.uid,
+            paintingId,
+            totalMinutes || 60,
+            gridSize || 6,
+            totalLayers || 5,
+            totalSessionBlocks
+          );
+        } else {
+          // joining the room that already exists
+          await joinRoom(user.uid, paintingId, totalMinutes || 60);
+        }
+
+        // 3. Setup Presence (Same as before)
         await updatePresence(user, profile, paintingId, true);
-
         const presenceRef = collection(db, "paintings", paintingId, "presence");
         unsubscribePresence = onSnapshot(presenceRef, (snapshot) => {
           const players = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -117,11 +132,13 @@ function StudyRoomContent() {
       leaveGlobalRoom(user.uid, paintingId);
       if (unsubscribePresence) unsubscribePresence();
     };
-  }, [user, authLoading, paintingId, totalSessionBlocks, totalMinutes, gridSize, totalLayers]);
+  }, [user, authLoading, paintingId]);
 
   useEffect(() => {
     if (!paintingId) return;
     const unsubscribe = onSnapshot(doc(db, "paintings", paintingId), (snapshot) => {
+
+      // SETTING EVERYTHING LOCALLY TO USE
       if (snapshot.exists()) {
         const data = snapshot.data();
         setRevealedCount(data.revealedBlocks || 0); 
@@ -133,6 +150,7 @@ function StudyRoomContent() {
         setSessionBaseBlocks(data.sessionBaseBlocks ?? (data.revealedBlocks || 0));
         if (data.status) setRoomStatus(data.status); 
         if (data.lastStartTime) setGlobalStartTime(data.lastStartTime.toDate().getTime());
+        setCurrentTurnIndex(data.currentTurnIndex || 0);
         const sessionAnchor = data.sessionStartedAt || data.lastStartTime;
         if (sessionAnchor) setStableSessionStart(sessionAnchor.toDate().getTime());
       }
@@ -152,22 +170,30 @@ function StudyRoomContent() {
     return () => clearInterval(interval);
   }, [globalStartTime, bankedMs, sortedWorkers.length, roomStatus, isSessionComplete]);
 
-  // FIX: USE ATOMIC INCREMENT
-  const handleBlockComplete = async () => {
-    if (!paintingId) return;
-    try {
-        await updateDoc(doc(db, "paintings", paintingId), {
-          revealedBlocks: increment(1)
-        });
-    } catch (e) {
-        console.error("Block sync failed:", e);
-    }
-  };
+  // WHEN A BLOCK HAS BEEN COMPLETED
+const handleBlockComplete = async () => {
+  if (!paintingId) return;
+  
+  const paintingRef = doc(db, "paintings", paintingId);
+  
+  // Calculate the next person in line
+  const nextPointer = (currentTurnIndex + 1) % Math.max(1, sortedWorkers.length);
 
-  const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1);
-  const baseLevel = isSessionComplete ? 6 : (currentLayerIndex + 1);
-  const topLevel = (currentLayerIndex + 2);
+  try {
+    await updateDoc(paintingRef, {
+      revealedBlocks: increment(1), // Move the painting forward
+      currentTurnIndex: nextPointer  // Move the "Turn" forward
+    });
+  } catch (e) {
+    console.error("Shift failed:", e);
+  }
+};
 
+  const currentLayerIndex = Math.min(Math.floor(revealedCount / blocksPerLayer), totalLayers - 1); // figuring out what layer we are at 
+  const baseLevel = isSessionComplete ? 6 : (currentLayerIndex + 1); // what layer is underneath
+  const topLevel = (currentLayerIndex + 2); // what layer is being drawn
+
+  // loading logic
   if (authLoading || dataLoading || !studyImage || dbShuffledIndices.length === 0) {
     return (
       <main className="min-h-screen bg-app-bg flex items-center justify-center font-space">
@@ -176,17 +202,18 @@ function StudyRoomContent() {
     );
   }
 
-  // FIX: CALCULATE SPEED BASED ON SESSION GOAL (totalMinutes)
   const sessionTotalSeconds = totalMinutes * 60;
   const secondsPerBlock = sessionTotalSeconds / Math.max(1, totalSessionBlocks);
   
   const sessionSeconds = roomStatus === "idle" ? 0 : Math.max(0, secondsElapsed - (sessionBaseMs / 1000));
   
-  // Avatar target follows the current session progress
+  // THE CODE THAT TRIGGERS THE AVATARS
+  //------------------------------------------------------------------------------------------------------------//
   const targetBlocksCount = Math.min(
     (roomStatus === "idle" ? revealedCount : sessionBaseBlocks) + Math.floor(sessionSeconds / secondsPerBlock), 
     totalSessionBlocks
   );
+  //------------------------------------------------------------------------------------------------------------//
 
   return (
     <main className="min-h-screen bg-app-bg flex flex-col items-center justify-center transition-colors duration-300">
@@ -241,13 +268,14 @@ function StudyRoomContent() {
             revealedCount={revealedCount}
             userName={player.username}
             avatarSrc={player.avatar}
-            targetBlocksCount={targetBlocksCount}
+            targetBlocksCount={targetBlocksCount} // what triggers the avatar to move 
             shuffledIndices={dbShuffledIndices} 
             gridSize={gridSize}
             onBlockComplete={handleBlockComplete}
             lastSeen={player.lastSeen}
             roomStatus={roomStatus}
             globalStartTime={stableSessionStart}
+            currentTurnIndex={currentTurnIndex}
           />
         ))}
         <Desk topPosition={600} />

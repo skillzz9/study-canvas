@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, AnimatePresence } from "framer-motion";
 import PaintingFrame from "@/components/PaintingFrame";
-import PictureModal from "@/components/PictureModal";
+import PictureModal from "@/components/PaintingModal";
 import SideMenu from "@/components/SideMenu";
 import CreatePaintingModal from "@/components/CreatePaintingModal";
 import ItemToolbar from "@/components/ItemToolbar"; 
