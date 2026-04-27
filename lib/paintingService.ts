@@ -11,6 +11,7 @@ import {
   arrayUnion 
 } from "firebase/firestore";
 
+// GENERATES A RANDOM CODE FOR JOINING OTHER PAINTINGS TO GALLERY
 const generateShareCode = () => Math.random().toString(36).substring(2, 7).toUpperCase();
 
 export const createPainting = async (
@@ -19,13 +20,15 @@ export const createPainting = async (
   subject: string,
   hours: number,
   imageUrl: string,
+  // can be joined by another user
   isShared: boolean
 ) => {
   const shareCode = isShared ? generateShareCode() : null;
   
+  // initializing a painting
   const paintingData = {
     userId,
-    allowedUsers: [userId], 
+    allowedUsers: [userId], // when somoene joins with the code, it adds them to the allowed list. 
     title,
     subject,
     totalMinutes: hours * 60,

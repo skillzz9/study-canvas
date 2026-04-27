@@ -56,13 +56,15 @@ function StudyRoomContent() {
   const [sessionBaseMs, setSessionBaseMs] = useState(0);
   const [sessionBaseBlocks, setSessionBaseBlocks] = useState(0);
 
+  // BLOCK LOGIC
+  const blocksPerLayer = gridSize * gridSize;
+  const totalSessionBlocks = blocksPerLayer * totalLayers;
+
   // other boring variables that are self explanitory
   const [dataLoading, setDataLoading] = useState(true);
   const hasInitialized = useRef(false); 
 
-  const blocksPerLayer = gridSize * gridSize;
-  const totalSessionBlocks = blocksPerLayer * totalLayers;
-
+  // 
   const sortedWorkers = useMemo(() => {
     return [...collaborators].sort((a, b) => a.id.localeCompare(b.id));
   }, [collaborators]);
